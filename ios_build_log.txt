@@ -1,0 +1,802 @@
+Warning: Building for device with codesigning disabled. You will have to manually codesign before deploying to device.
+Building com.therize.fmanager.app for device (ios-release)...
+Warning: CocoaPods recommended version 1.13.0 or greater not installed.
+Pods handling may fail on some projects involving plugins.
+To update CocoaPods, see https://guides.cocoapods.org/using/getting-started.html#updating-cocoapods
+
+Running pod install...                                             20.9s
+CocoaPods' output:
+↳
+      Preparing
+
+    Analyzing dependencies
+
+    Inspecting targets to integrate
+      Using `ARCHS` setting to build architectures of target `Pods-Runner`: (``)
+      Using `ARCHS` setting to build architectures of target `Pods-RunnerTests`: (``)
+
+    Fetching external sources
+    -> Fetching podspec for `Flutter` from `Flutter`
+    -> Fetching podspec for `device_info_plus` from `.symlinks/plugins/device_info_plus/ios`
+    -> Fetching podspec for `file_picker` from `.symlinks/plugins/file_picker/ios`
+    -> Fetching podspec for `flutter_local_notifications` from `.symlinks/plugins/flutter_local_notifications/ios`
+    -> Fetching podspec for `flutter_native_splash` from `.symlinks/plugins/flutter_native_splash/ios`
+    -> Fetching podspec for `google_mlkit_commons` from `.symlinks/plugins/google_mlkit_commons/ios`
+    -> Fetching podspec for `google_mlkit_text_recognition` from `.symlinks/plugins/google_mlkit_text_recognition/ios`
+    -> Fetching podspec for `home_widget` from `.symlinks/plugins/home_widget/ios`
+    -> Fetching podspec for `image_picker_ios` from `.symlinks/plugins/image_picker_ios/ios`
+    -> Fetching podspec for `local_auth_darwin` from `.symlinks/plugins/local_auth_darwin/darwin`
+    -> Fetching podspec for `path_provider_foundation` from `.symlinks/plugins/path_provider_foundation/darwin`
+    -> Fetching podspec for `share_plus` from `.symlinks/plugins/share_plus/ios`
+    -> Fetching podspec for `url_launcher_ios` from `.symlinks/plugins/url_launcher_ios/ios`
+
+    Resolving dependencies of `Podfile`
+      CDN: trunk Relative path: CocoaPods-version.yml exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: all_pods_versions_1_6_1.txt exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/4.3.9/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/1.0.0/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/1.0.2/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/1.0.3/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/1.0.4/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/1.1.0/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/2.0.0/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/2.1.0/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/2.2.0/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/2.3.0/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/2.3.1/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/2.3.5/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/2.3.6/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/2.3.7/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/2.4.0/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/2.4.1/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/2.4.2/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/2.4.3/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/3.0.0/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/3.0.1/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/3.0.2/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/3.0.3/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/3.0.4/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/3.0.5/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/3.0.6/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/3.0.7/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/3.0.8/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/3.0.9/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/3.0.10/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/3.0.11/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/3.1.0/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/3.1.1/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/3.1.2/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/3.1.3/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/3.2.0/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/3.2.1/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/3.3.0/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/3.3.1/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/3.3.2/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/3.3.3/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/3.3.4/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/3.3.5/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/3.4.0/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/3.4.1/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/3.4.2/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/3.5.0/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/3.5.1/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/3.5.2/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/3.5.3/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/3.5.4/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/3.5.5/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/3.5.6/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/3.5.7/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/3.6.0/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/3.6.1/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/3.6.2/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/3.8.0/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/3.8.1/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/4.0.0-beta/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/4.0.0-beta2/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/4.0.0/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/4.0.1/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/4.0.2/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/4.0.3/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/4.0.4/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/4.1.0/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/4.1.1/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/4.1.2/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/4.1.3/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/4.1.4/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/4.1.5/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/4.1.6/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/4.1.7/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/4.2.0/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/4.2.1/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/4.2.2/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/4.3.0/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/4.3.1/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/4.3.2/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/4.3.3/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/4.3.4/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/4.3.7/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/4.3.8/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/4.3.9/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: all_pods_versions_8_1_e.txt exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/8/1/e/MLKitVision/10.0.0/MLKitVision.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: all_pods_versions_b_e_b.txt exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/b/e/b/GoogleMLKit/9.0.0/GoogleMLKit.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/b/e/b/GoogleMLKit/7.0.0/GoogleMLKit.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: all_pods_versions_4_2_c.txt exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/4/2/c/FlutterMacOS/3.16.0/FlutterMacOS.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/b/e/b/GoogleMLKit/7.0.0/GoogleMLKit.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: all_pods_versions_e_2_0.txt exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/e/2/0/MLKitTextRecognition/7.0.0/MLKitTextRecognition.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: all_pods_versions_c_c_6.txt exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/c/c/6/MLKitCommon/14.0.0/MLKitCommon.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/e/2/0/MLKitTextRecognition/5.0.0/MLKitTextRecognition.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: all_pods_versions_7_c_c.txt exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/7/c/c/MLKitTextRecognitionCommon/6.0.0/MLKitTextRecognitionCommon.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/c/c/6/MLKitCommon/12.0.0/MLKitCommon.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: all_pods_versions_c_e_3.txt exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/c/e/3/GTMSessionFetcher/5.1.0/GTMSessionFetcher.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/c/e/3/GTMSessionFetcher/3.3.2/GTMSessionFetcher.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/c/e/3/GTMSessionFetcher/3.4.0/GTMSessionFetcher.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/c/e/3/GTMSessionFetcher/3.4.1/GTMSessionFetcher.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/c/e/3/GTMSessionFetcher/3.5.0/GTMSessionFetcher.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: all_pods_versions_0_6_a.txt exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/0/6/a/GoogleDataTransport/10.1.0/GoogleDataTransport.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: all_pods_versions_7_4_b.txt exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/7/4/b/GoogleToolboxForMac/6.0.0/GoogleToolboxForMac.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/7/4/b/GoogleToolboxForMac/4.2.1/GoogleToolboxForMac.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/7/4/b/GoogleToolboxForMac/4.2.1/GoogleToolboxForMac.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: all_pods_versions_0_8_4.txt exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/0/8/4/GoogleUtilities/8.1.0/GoogleUtilities.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/0/8/4/GoogleUtilities/8.0.0/GoogleUtilities.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/0/8/4/GoogleUtilities/8.0.1/GoogleUtilities.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/0/8/4/GoogleUtilities/8.0.2/GoogleUtilities.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/0/8/4/GoogleUtilities/8.1.0/GoogleUtilities.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/0/8/4/GoogleUtilities/8.0.0/GoogleUtilities.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/0/8/4/GoogleUtilities/8.0.1/GoogleUtilities.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/0/8/4/GoogleUtilities/8.0.2/GoogleUtilities.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/0/8/4/GoogleUtilities/8.1.0/GoogleUtilities.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/c/c/6/MLKitCommon/12.0.0/MLKitCommon.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/7/c/c/MLKitTextRecognitionCommon/4.0.0/MLKitTextRecognitionCommon.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/7/4/b/GoogleToolboxForMac/4.2.1/GoogleToolboxForMac.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/8/1/e/MLKitVision/8.0.0/MLKitVision.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: all_pods_versions_0_a_c.txt exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/0/a/c/MLImage/1.0.0-beta8/MLImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/8/1/e/MLKitVision/10.0.0/MLKitVision.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/8/1/e/MLKitVision/9.0.0/MLKitVision.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/8/1/e/MLKitVision/8.0.0/MLKitVision.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/8/1/e/MLKitVision/7.0.0/MLKitVision.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/8/1/e/MLKitVision/6.0.0/MLKitVision.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/8/1/e/MLKitVision/5.0.0/MLKitVision.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/8/1/e/MLKitVision/4.2.0/MLKitVision.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/8/1/e/MLKitVision/4.1.0/MLKitVision.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/8/1/e/MLKitVision/4.0.0/MLKitVision.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/8/1/e/MLKitVision/3.0.0/MLKitVision.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/8/1/e/MLKitVision/2.0.0/MLKitVision.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/8/1/e/MLKitVision/1.3.0/MLKitVision.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/8/1/e/MLKitVision/1.2.0/MLKitVision.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/8/1/e/MLKitVision/1.1.0/MLKitVision.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/8/1/e/MLKitVision/1.0.0/MLKitVision.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/8/1/e/MLKitVision/0.64.0/MLKitVision.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/8/1/e/MLKitVision/0.63.0/MLKitVision.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/8/1/e/MLKitVision/0.62.0/MLKitVision.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/8/1/e/MLKitVision/0.61.0/MLKitVision.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/8/1/e/MLKitVision/0.60.0/MLKitVision.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/0/a/c/MLImage/1.0.0-beta6/MLImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/0/6/a/GoogleDataTransport/10.1.0/GoogleDataTransport.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/0/6/a/GoogleDataTransport/10.0.0/GoogleDataTransport.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: all_pods_versions_6_1_e.txt exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/6/1/e/nanopb/3.30910.0/nanopb.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: all_pods_versions_0_b_5.txt exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/0/b/5/PromisesObjC/2.4.0/PromisesObjC.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/6/1/e/nanopb/3.30910.0/nanopb.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/6/1/e/nanopb/3.30910.0/nanopb.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/6/1/e/nanopb/3.30910.0/nanopb.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/0/b/5/PromisesObjC/2.4.0/PromisesObjC.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/0/8/4/GoogleUtilities/8.1.0/GoogleUtilities.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/0/8/4/GoogleUtilities/8.1.0/GoogleUtilities.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/0/8/4/GoogleUtilities/8.1.0/GoogleUtilities.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/4/2/c/FlutterMacOS/3.16.0/FlutterMacOS.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/4/2/c/FlutterMacOS/3.13.2/FlutterMacOS.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/4/2/c/FlutterMacOS/3.13.0/FlutterMacOS.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/4/2/c/FlutterMacOS/3.0.0/FlutterMacOS.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/4/2/c/FlutterMacOS/2.10.2/FlutterMacOS.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/4/2/c/FlutterMacOS/2.5/FlutterMacOS.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/4/2/c/FlutterMacOS/2.2.2/FlutterMacOS.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/4/2/c/FlutterMacOS/2.0.0/FlutterMacOS.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/4/2/c/FlutterMacOS/1.22.4/FlutterMacOS.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/4/2/c/FlutterMacOS/1.17.0/FlutterMacOS.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/4/2/c/FlutterMacOS/1.12.1303/FlutterMacOS.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/4/2/c/FlutterMacOS/1.9.102/FlutterMacOS.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/4.3.9/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: all_pods_versions_0_d_e.txt exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/0/d/e/DKPhotoGallery/0.0.19/DKPhotoGallery.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/4.3.9/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/6/1/DKImagePickerController/4.3.9/DKImagePickerController.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/0/d/e/DKPhotoGallery/0.0.19/DKPhotoGallery.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/0/d/e/DKPhotoGallery/0.0.18/DKPhotoGallery.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/0/d/e/DKPhotoGallery/0.0.17/DKPhotoGallery.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/0/d/e/DKPhotoGallery/0.0.15/DKPhotoGallery.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/0/d/e/DKPhotoGallery/0.0.14/DKPhotoGallery.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/0/d/e/DKPhotoGallery/0.0.13/DKPhotoGallery.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/0/d/e/DKPhotoGallery/0.0.12/DKPhotoGallery.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/0/d/e/DKPhotoGallery/0.0.11/DKPhotoGallery.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/0/d/e/DKPhotoGallery/0.0.10/DKPhotoGallery.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/0/d/e/DKPhotoGallery/0.0.9/DKPhotoGallery.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/0/d/e/DKPhotoGallery/0.0.8/DKPhotoGallery.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/0/d/e/DKPhotoGallery/0.0.7/DKPhotoGallery.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/0/d/e/DKPhotoGallery/0.0.6/DKPhotoGallery.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/0/d/e/DKPhotoGallery/0.0.5/DKPhotoGallery.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/0/d/e/DKPhotoGallery/0.0.4/DKPhotoGallery.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/0/d/e/DKPhotoGallery/0.0.3/DKPhotoGallery.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/0/d/e/DKPhotoGallery/0.0.2/DKPhotoGallery.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/0/d/e/DKPhotoGallery/0.0.1/DKPhotoGallery.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: all_pods_versions_1_1_7.txt exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.21.6/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: all_pods_versions_2_2_8.txt exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/2/2/8/SwiftyGif/5.4.5/SwiftyGif.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/0/d/e/DKPhotoGallery/0.0.19/DKPhotoGallery.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/0/d/e/DKPhotoGallery/0.0.19/DKPhotoGallery.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/0/d/e/DKPhotoGallery/0.0.19/DKPhotoGallery.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/0/d/e/DKPhotoGallery/0.0.19/DKPhotoGallery.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/2/2/8/SwiftyGif/5.4.5/SwiftyGif.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/2/2/8/SwiftyGif/5.4.4/SwiftyGif.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/2/2/8/SwiftyGif/5.4.3/SwiftyGif.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/2/2/8/SwiftyGif/5.4.2/SwiftyGif.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/2/2/8/SwiftyGif/5.4.1/SwiftyGif.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/2/2/8/SwiftyGif/5.4.0/SwiftyGif.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/2/2/8/SwiftyGif/5.3.0/SwiftyGif.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/2/2/8/SwiftyGif/5.2.0/SwiftyGif.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/2/2/8/SwiftyGif/5.1.1/SwiftyGif.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/2/2/8/SwiftyGif/5.0.1/SwiftyGif.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/2/2/8/SwiftyGif/5.0.0/SwiftyGif.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/2/2/8/SwiftyGif/4.2.0/SwiftyGif.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/2/2/8/SwiftyGif/4.1.0/SwiftyGif.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/2/2/8/SwiftyGif/4.0.0/SwiftyGif.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/2/2/8/SwiftyGif/3.1.3/SwiftyGif.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/2/2/8/SwiftyGif/3.1.2/SwiftyGif.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/2/2/8/SwiftyGif/3.1.1/SwiftyGif.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/2/2/8/SwiftyGif/3.1.0/SwiftyGif.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/2/2/8/SwiftyGif/3.0.3/SwiftyGif.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/2/2/8/SwiftyGif/3.0.2/SwiftyGif.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/2/2/8/SwiftyGif/3.0.0/SwiftyGif.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/2/2/8/SwiftyGif/1.2.2/SwiftyGif.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/2/2/8/SwiftyGif/1.2.1/SwiftyGif.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/2/2/8/SwiftyGif/1.2.0/SwiftyGif.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/2/2/8/SwiftyGif/1.1.0/SwiftyGif.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/2/2/8/SwiftyGif/1.0.2/SwiftyGif.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/2/2/8/SwiftyGif/1.0.1/SwiftyGif.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/2/2/8/SwiftyGif/1.0.0/SwiftyGif.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.21.6/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.21.5/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.21.4/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.21.3/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.21.2/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.21.1/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.21.0/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.20.1/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.20.0/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.19.7/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.19.6/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.19.5/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.19.4/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.19.2/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.19.1/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.19.0/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.18.12/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.18.11/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.18.10/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.18.9/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.18.8/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.18.7/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.18.6/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.18.5/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.18.4/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.18.3/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.18.2/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.18.1/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.18.0/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.17.0/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.16.0/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.15.8/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.15.7/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.15.6/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.15.5/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.15.4/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.15.3/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.15.2/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.15.1/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.15.0/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.14.3/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.14.2/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.14.1/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.14.0/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.13.5/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.13.4/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.13.3/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.13.2/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.13.1/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.13.0/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.12.6/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.12.5/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.12.4/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.12.3/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.12.2/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.12.1/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.12.0/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.11.1/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.11.0/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.10.4/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.10.3/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.10.2/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.10.1/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.10.0/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.9.5/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.9.4/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.9.3/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.9.2/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.9.1/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.9.0/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.8.4/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.8.3/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.8.2/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.8.1/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.8.0/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.7.4/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.7.3/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.7.2/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.7.1/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.7.0/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.6.1/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.6.0/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.5.2/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.5.1/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.5.0/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.4.3/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.4.2/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.4.1/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.4.0/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.3.4/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.3.3/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.3.2/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.3.1/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.3.0/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.2.5/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.2.4/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.2.3/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.2.2/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.2.1/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.2.0/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.1.1/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.1.0/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.0.6/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.0.5/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.0.4/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.0.3/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.0.2/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.0.1/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.0.0/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.0.0-beta6/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.0.0-beta5/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.0.0-beta4/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.0.0-beta3/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.0.0-beta2/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.0.0-beta/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/4.4.8/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/4.4.7/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/4.4.6/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/4.4.5/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/4.4.4/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/4.4.3/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/4.4.2/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/4.4.1/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/4.4.0/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/4.3.3/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/4.3.2/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/4.3.1/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/4.3.0/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/4.2.3/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/4.2.2/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/4.2.1/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/4.2.0/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/4.1.2/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/4.1.1/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/4.1.0/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/4.0.0/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/4.0.0-beta2/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/4.0.0-beta/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/3.8.3/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/3.8.2/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/3.8.1/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/3.8.0/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/3.7.6/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/3.7.5/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/3.7.4/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/3.7.3/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/3.7.2/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/3.7.1/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/3.7.0/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/3.6/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/3.5.4/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/3.5.2/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/3.5.1/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/3.5/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/3.4/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/3.3/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/3.2/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/3.1/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/3.0/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/2.7.4/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/2.7/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/2.6/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/2.5/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/2.4/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+      CDN: trunk Relative path: Specs/1/1/7/SDWebImage/5.21.6/SDWebImage.podspec.json exists! Returning local because checking is only performed in repo update
+
+    Comparing resolved specification to the sandbox manifest
+      A DKImagePickerController
+      A DKPhotoGallery
+      A Flutter
+      A GTMSessionFetcher
+      A GoogleDataTransport
+      A GoogleMLKit
+      A GoogleToolboxForMac
+      A GoogleUtilities
+      A MLImage
+      A MLKitCommon
+      A MLKitTextRecognition
+      A MLKitTextRecognitionCommon
+      A MLKitVision
+      A PromisesObjC
+      A SDWebImage
+      A SwiftyGif
+      A device_info_plus
+      A file_picker
+      A flutter_local_notifications
+      A flutter_native_splash
+      A google_mlkit_commons
+      A google_mlkit_text_recognition
+      A home_widget
+      A image_picker_ios
+      A local_auth_darwin
+      A nanopb
+      A path_provider_foundation
+      A share_plus
+      A url_launcher_ios
+
+    Downloading dependencies
+
+    -> Installing DKImagePickerController (4.3.9)
+      > Copying DKImagePickerController from `/Users/therize/Library/Caches/CocoaPods/Pods/Release/DKImagePickerController/4.3.9-946ce` to `Pods/DKImagePickerController`
+
+    -> Installing DKPhotoGallery (0.0.19)
+      > Copying DKPhotoGallery from `/Users/therize/Library/Caches/CocoaPods/Pods/Release/DKPhotoGallery/0.0.19-b3834` to `Pods/DKPhotoGallery`
+
+    -> Installing Flutter (1.0.0)
+
+    -> Installing GTMSessionFetcher (3.5.0)
+      > Copying GTMSessionFetcher from `/Users/therize/Library/Caches/CocoaPods/Pods/Release/GTMSessionFetcher/3.5.0-5aea5` to `Pods/GTMSessionFetcher`
+
+    -> Installing GoogleDataTransport (10.1.0)
+      > Copying GoogleDataTransport from `/Users/therize/Library/Caches/CocoaPods/Pods/Release/GoogleDataTransport/10.1.0-aae35` to `Pods/GoogleDataTransport`
+
+    -> Installing GoogleMLKit (7.0.0)
+      > Copying GoogleMLKit from `/Users/therize/Library/Caches/CocoaPods/Pods/Release/GoogleMLKit/7.0.0-eff9e` to `Pods/GoogleMLKit`
+
+    -> Installing GoogleToolboxForMac (4.2.1)
+      > Copying GoogleToolboxForMac from `/Users/therize/Library/Caches/CocoaPods/Pods/Release/GoogleToolboxForMac/4.2.1-d1a2c` to `Pods/GoogleToolboxForMac`
+
+    -> Installing GoogleUtilities (8.1.0)
+      > Copying GoogleUtilities from `/Users/therize/Library/Caches/CocoaPods/Pods/Release/GoogleUtilities/8.1.0-00c88` to `Pods/GoogleUtilities`
+
+    -> Installing MLImage (1.0.0-beta6)
+      > Copying MLImage from `/Users/therize/Library/Caches/CocoaPods/Pods/Release/MLImage/1.0.0-beta6-0ad1c` to `Pods/MLImage`
+
+    -> Installing MLKitCommon (12.0.0)
+      > Copying MLKitCommon from `/Users/therize/Library/Caches/CocoaPods/Pods/Release/MLKitCommon/12.0.0-07c2c` to `Pods/MLKitCommon`
+
+    -> Installing MLKitTextRecognition (5.0.0)
+     > Http download
+       $ /usr/bin/curl -f -L -o /var/folders/5h/v9gdd_fn511fsl78c_vchflm0000gn/T/d20260224-14044-4h6bme/file.tgz https://dl.google.com/dl/cpdc/d5af72c4ecd52903/MLKitTextRecognition-5.0.0.tar.gz --create-dirs --netrc-optional --retry 2 -A 'CocoaPods/1.12.1 cocoapods-downloader/1.6.3'
+       $ /usr/bin/tar xf /var/folders/5h/v9gdd_fn511fsl78c_vchflm0000gn/T/d20260224-14044-4h6bme/file.tgz -C /var/folders/5h/v9gdd_fn511fsl78c_vchflm0000gn/T/d20260224-14044-4h6bme
+      > Copying MLKitTextRecognition from `/Users/therize/Library/Caches/CocoaPods/Pods/Release/MLKitTextRecognition/5.0.0-3b41f` to `Pods/MLKitTextRecognition`
+
+    -> Installing MLKitTextRecognitionCommon (4.0.0)
+     > Http download
+       $ /usr/bin/curl -f -L -o /var/folders/5h/v9gdd_fn511fsl78c_vchflm0000gn/T/d20260224-14044-1p6fqfo/file.tgz https://dl.google.com/dl/cpdc/136b22e0906b88b0/MLKitTextRecognitionCommon-4.0.0.tar.gz --create-dirs --netrc-optional --retry 2 -A 'CocoaPods/1.12.1 cocoapods-downloader/1.6.3'
+       $ /usr/bin/tar xf /var/folders/5h/v9gdd_fn511fsl78c_vchflm0000gn/T/d20260224-14044-1p6fqfo/file.tgz -C /var/folders/5h/v9gdd_fn511fsl78c_vchflm0000gn/T/d20260224-14044-1p6fqfo
+      > Copying MLKitTextRecognitionCommon from `/Users/therize/Library/Caches/CocoaPods/Pods/Release/MLKitTextRecognitionCommon/4.0.0-cd445` to `Pods/MLKitTextRecognitionCommon`
+
+    -> Installing MLKitVision (8.0.0)
+     > Http download
+       $ /usr/bin/curl -f -L -o /var/folders/5h/v9gdd_fn511fsl78c_vchflm0000gn/T/d20260224-14044-1tkdkus/file.tgz https://dl.google.com/dl/cpdc/f23a8a29f3f18f80/MLKitVision-8.0.0.tar.gz --create-dirs --netrc-optional --retry 2 -A 'CocoaPods/1.12.1 cocoapods-downloader/1.6.3'
+       $ /usr/bin/tar xf /var/folders/5h/v9gdd_fn511fsl78c_vchflm0000gn/T/d20260224-14044-1tkdkus/file.tgz -C /var/folders/5h/v9gdd_fn511fsl78c_vchflm0000gn/T/d20260224-14044-1tkdkus
+      > Copying MLKitVision from `/Users/therize/Library/Caches/CocoaPods/Pods/Release/MLKitVision/8.0.0-45e79` to `Pods/MLKitVision`
+
+    -> Installing PromisesObjC (2.4.0)
+      > Copying PromisesObjC from `/Users/therize/Library/Caches/CocoaPods/Pods/Release/PromisesObjC/2.4.0-f5707` to `Pods/PromisesObjC`
+
+    -> Installing SDWebImage (5.21.6)
+      > Copying SDWebImage from `/Users/therize/Library/Caches/CocoaPods/Pods/Release/SDWebImage/5.21.6-1bb6a` to `Pods/SDWebImage`
+
+    -> Installing SwiftyGif (5.4.5)
+      > Copying SwiftyGif from `/Users/therize/Library/Caches/CocoaPods/Pods/Release/SwiftyGif/5.4.5-706c6` to `Pods/SwiftyGif`
+
+    -> Installing device_info_plus (0.0.1)
+
+    -> Installing file_picker (0.0.1)
+
+    -> Installing flutter_local_notifications (0.0.1)
+
+    -> Installing flutter_native_splash (2.4.3)
+
+    -> Installing google_mlkit_commons (0.9.0)
+
+    -> Installing google_mlkit_text_recognition (0.14.0)
+
+    -> Installing home_widget (0.0.1)
+
+    -> Installing image_picker_ios (0.0.1)
+
+    -> Installing local_auth_darwin (0.0.1)
+
+    -> Installing nanopb (3.30910.0)
+     > Git download
+     > Git download
+         $ /usr/bin/git clone https://github.com/nanopb/nanopb.git /var/folders/5h/v9gdd_fn511fsl78c_vchflm0000gn/T/d20260224-14044-42wyq1 --template= --single-branch --depth 1 --branch 0.3.9.10
+      > Copying nanopb from `/Users/therize/Library/Caches/CocoaPods/Pods/Release/nanopb/3.30910.0-fad81` to `Pods/nanopb`
+
+    -> Installing path_provider_foundation (0.0.1)
+
+    -> Installing share_plus (0.0.1)
+
+    -> Installing url_launcher_ios (0.0.1)
+      - Running pre install hooks
+      - Running pre integrate hooks
+
+    Generating Pods project
+      - Creating Pods project
+      - Installing files into Pods project
+        - Adding source files
+        - Adding frameworks
+        - Adding libraries
+        - Adding resources
+        - Adding development pod helper files
+        - Linking headers
+      - Installing Pod Targets
+        - Installing target `DKImagePickerController` iOS 9.0
+          - Generating Info.plist file at `Pods/Target Support Files/DKImagePickerController/ResourceBundle-DKImagePickerController-DKImagePickerController-Info.plist`
+          - Generating module map file at `Pods/Target Support Files/DKImagePickerController/DKImagePickerController.modulemap`
+          - Generating umbrella header at `Pods/Target Support Files/DKImagePickerController/DKImagePickerController-umbrella.h`
+          - Generating Info.plist file at `Pods/Target Support Files/DKImagePickerController/DKImagePickerController-Info.plist`
+          - Generating dummy source at `Pods/Target Support Files/DKImagePickerController/DKImagePickerController-dummy.m`
+        - Installing target `DKPhotoGallery` iOS 9.0
+          - Generating Info.plist file at `Pods/Target Support Files/DKPhotoGallery/ResourceBundle-DKPhotoGallery-DKPhotoGallery-Info.plist`
+          - Generating module map file at `Pods/Target Support Files/DKPhotoGallery/DKPhotoGallery.modulemap`
+          - Generating umbrella header at `Pods/Target Support Files/DKPhotoGallery/DKPhotoGallery-umbrella.h`
+          - Generating Info.plist file at `Pods/Target Support Files/DKPhotoGallery/DKPhotoGallery-Info.plist`
+          - Generating dummy source at `Pods/Target Support Files/DKPhotoGallery/DKPhotoGallery-dummy.m`
+        - Installing target `Flutter` iOS 12.0
+        - Installing target `GTMSessionFetcher` iOS 10.0
+          - Generating Info.plist file at `Pods/Target Support Files/GTMSessionFetcher/ResourceBundle-GTMSessionFetcher_Core_Privacy-GTMSessionFetcher-Info.plist`
+          - Generating module map file at `Pods/Target Support Files/GTMSessionFetcher/GTMSessionFetcher.modulemap`
+          - Generating umbrella header at `Pods/Target Support Files/GTMSessionFetcher/GTMSessionFetcher-umbrella.h`
+          - Generating Info.plist file at `Pods/Target Support Files/GTMSessionFetcher/GTMSessionFetcher-Info.plist`
+          - Generating dummy source at `Pods/Target Support Files/GTMSessionFetcher/GTMSessionFetcher-dummy.m`
+        - Installing target `GoogleDataTransport` iOS 12.0
+          - Generating Info.plist file at `Pods/Target Support Files/GoogleDataTransport/ResourceBundle-GoogleDataTransport_Privacy-GoogleDataTransport-Info.plist`
+          - Generating module map file at `Pods/Target Support Files/GoogleDataTransport/GoogleDataTransport.modulemap`
+          - Generating umbrella header at `Pods/Target Support Files/GoogleDataTransport/GoogleDataTransport-umbrella.h`
+          - Generating Info.plist file at `Pods/Target Support Files/GoogleDataTransport/GoogleDataTransport-Info.plist`
+          - Generating dummy source at `Pods/Target Support Files/GoogleDataTransport/GoogleDataTransport-dummy.m`
+        - Installing target `GoogleMLKit` iOS 15.5
+        - Installing target `GoogleToolboxForMac` iOS 10.0
+          - Generating Info.plist file at `Pods/Target Support Files/GoogleToolboxForMac/ResourceBundle-GoogleToolboxForMac_Privacy-GoogleToolboxForMac-Info.plist`
+          - Generating Info.plist file at `Pods/Target Support Files/GoogleToolboxForMac/ResourceBundle-GoogleToolboxForMac_Logger_Privacy-GoogleToolboxForMac-Info.plist`
+          - Generating module map file at `Pods/Target Support Files/GoogleToolboxForMac/GoogleToolboxForMac.modulemap`
+          - Generating umbrella header at `Pods/Target Support Files/GoogleToolboxForMac/GoogleToolboxForMac-umbrella.h`
+          - Generating Info.plist file at `Pods/Target Support Files/GoogleToolboxForMac/GoogleToolboxForMac-Info.plist`
+          - Generating dummy source at `Pods/Target Support Files/GoogleToolboxForMac/GoogleToolboxForMac-dummy.m`
+        - Installing target `GoogleUtilities` iOS 12.0
+          - Generating Info.plist file at `Pods/Target Support Files/GoogleUtilities/ResourceBundle-GoogleUtilities_Privacy-GoogleUtilities-Info.plist`
+          - Generating module map file at `Pods/Target Support Files/GoogleUtilities/GoogleUtilities.modulemap`
+          - Generating umbrella header at `Pods/Target Support Files/GoogleUtilities/GoogleUtilities-umbrella.h`
+          - Generating Info.plist file at `Pods/Target Support Files/GoogleUtilities/GoogleUtilities-Info.plist`
+          - Generating dummy source at `Pods/Target Support Files/GoogleUtilities/GoogleUtilities-dummy.m`
+        - Installing target `MLImage` iOS 15.5
+        - Installing target `MLKitCommon` iOS 15.5
+        - Installing target `MLKitTextRecognition` iOS 15.5
+          - Generating Info.plist file at `Pods/Target Support Files/MLKitTextRecognition/ResourceBundle-LatinOCRResources-MLKitTextRecognition-Info.plist`
+        - Installing target `MLKitTextRecognitionCommon` iOS 15.5
+        - Installing target `MLKitVision` iOS 15.5
+        - Installing target `PromisesObjC` iOS 9.0
+          - Generating Info.plist file at `Pods/Target Support Files/PromisesObjC/ResourceBundle-FBLPromises_Privacy-PromisesObjC-Info.plist`
+          - Generating module map file at `Pods/Target Support Files/PromisesObjC/PromisesObjC.modulemap`
+          - Generating umbrella header at `Pods/Target Support Files/PromisesObjC/PromisesObjC-umbrella.h`
+          - Generating Info.plist file at `Pods/Target Support Files/PromisesObjC/PromisesObjC-Info.plist`
+          - Generating dummy source at `Pods/Target Support Files/PromisesObjC/PromisesObjC-dummy.m`
+        - Installing target `SDWebImage` iOS 9.0
+          - Generating Info.plist file at `Pods/Target Support Files/SDWebImage/ResourceBundle-SDWebImage-SDWebImage-Info.plist`
+          - Generating module map file at `Pods/Target Support Files/SDWebImage/SDWebImage.modulemap`
+          - Generating umbrella header at `Pods/Target Support Files/SDWebImage/SDWebImage-umbrella.h`
+          - Generating Info.plist file at `Pods/Target Support Files/SDWebImage/SDWebImage-Info.plist`
+          - Generating dummy source at `Pods/Target Support Files/SDWebImage/SDWebImage-dummy.m`
+        - Installing target `SwiftyGif` iOS 9.0
+          - Generating Info.plist file at `Pods/Target Support Files/SwiftyGif/ResourceBundle-SwiftyGif-SwiftyGif-Info.plist`
+          - Generating module map file at `Pods/Target Support Files/SwiftyGif/SwiftyGif.modulemap`
+          - Generating umbrella header at `Pods/Target Support Files/SwiftyGif/SwiftyGif-umbrella.h`
+          - Generating Info.plist file at `Pods/Target Support Files/SwiftyGif/SwiftyGif-Info.plist`
+          - Generating dummy source at `Pods/Target Support Files/SwiftyGif/SwiftyGif-dummy.m`
+        - Installing target `device_info_plus` iOS 12.0
+          - Generating Info.plist file at `Pods/Target Support Files/device_info_plus/ResourceBundle-device_info_plus_privacy-device_info_plus-Info.plist`
+          - Generating module map file at `Pods/Target Support Files/device_info_plus/device_info_plus.modulemap`
+          - Generating umbrella header at `Pods/Target Support Files/device_info_plus/device_info_plus-umbrella.h`
+          - Generating Info.plist file at `Pods/Target Support Files/device_info_plus/device_info_plus-Info.plist`
+          - Generating dummy source at `Pods/Target Support Files/device_info_plus/device_info_plus-dummy.m`
+        - Installing target `file_picker` iOS 12.0
+          - Generating Info.plist file at `Pods/Target Support Files/file_picker/ResourceBundle-file_picker_ios_privacy-file_picker-Info.plist`
+          - Copying module map file to `Pods/Target Support Files/file_picker/file_picker.modulemap`
+          - Generating Info.plist file at `Pods/Target Support Files/file_picker/file_picker-Info.plist`
+          - Generating dummy source at `Pods/Target Support Files/file_picker/file_picker-dummy.m`
+        - Installing target `flutter_local_notifications` iOS 11.0
+          - Generating Info.plist file at `Pods/Target Support Files/flutter_local_notifications/ResourceBundle-flutter_local_notifications_privacy-flutter_local_notifications-Info.plist`
+          - Generating module map file at `Pods/Target Support Files/flutter_local_notifications/flutter_local_notifications.modulemap`
+          - Generating umbrella header at `Pods/Target Support Files/flutter_local_notifications/flutter_local_notifications-umbrella.h`
+          - Generating Info.plist file at `Pods/Target Support Files/flutter_local_notifications/flutter_local_notifications-Info.plist`
+          - Generating dummy source at `Pods/Target Support Files/flutter_local_notifications/flutter_local_notifications-dummy.m`
+        - Installing target `flutter_native_splash` iOS 9.0
+          - Generating Info.plist file at `Pods/Target Support Files/flutter_native_splash/ResourceBundle-flutter_native_splash_privacy-flutter_native_splash-Info.plist`
+          - Generating module map file at `Pods/Target Support Files/flutter_native_splash/flutter_native_splash.modulemap`
+          - Generating umbrella header at `Pods/Target Support Files/flutter_native_splash/flutter_native_splash-umbrella.h`
+          - Generating Info.plist file at `Pods/Target Support Files/flutter_native_splash/flutter_native_splash-Info.plist`
+          - Generating dummy source at `Pods/Target Support Files/flutter_native_splash/flutter_native_splash-dummy.m`
+        - Installing target `google_mlkit_commons` iOS 15.5.0
+          - Generating module map file at `Pods/Target Support Files/google_mlkit_commons/google_mlkit_commons.modulemap`
+          - Generating umbrella header at `Pods/Target Support Files/google_mlkit_commons/google_mlkit_commons-umbrella.h`
+          - Generating Info.plist file at `Pods/Target Support Files/google_mlkit_commons/google_mlkit_commons-Info.plist`
+          - Generating dummy source at `Pods/Target Support Files/google_mlkit_commons/google_mlkit_commons-dummy.m`
+        - Installing target `google_mlkit_text_recognition` iOS 15.5.0
+          - Generating module map file at `Pods/Target Support Files/google_mlkit_text_recognition/google_mlkit_text_recognition.modulemap`
+          - Generating umbrella header at `Pods/Target Support Files/google_mlkit_text_recognition/google_mlkit_text_recognition-umbrella.h`
+          - Generating Info.plist file at `Pods/Target Support Files/google_mlkit_text_recognition/google_mlkit_text_recognition-Info.plist`
+          - Generating dummy source at `Pods/Target Support Files/google_mlkit_text_recognition/google_mlkit_text_recognition-dummy.m`
+        - Installing target `home_widget` iOS 14.0
+          - Generating module map file at `Pods/Target Support Files/home_widget/home_widget.modulemap`
+          - Generating umbrella header at `Pods/Target Support Files/home_widget/home_widget-umbrella.h`
+          - Generating Info.plist file at `Pods/Target Support Files/home_widget/home_widget-Info.plist`
+          - Generating dummy source at `Pods/Target Support Files/home_widget/home_widget-dummy.m`
+        - Installing target `image_picker_ios` iOS 12.0
+          - Generating Info.plist file at `Pods/Target Support Files/image_picker_ios/ResourceBundle-image_picker_ios_privacy-image_picker_ios-Info.plist`
+          - Copying module map file to `Pods/Target Support Files/image_picker_ios/image_picker_ios.modulemap`
+          - Generating Info.plist file at `Pods/Target Support Files/image_picker_ios/image_picker_ios-Info.plist`
+          - Generating dummy source at `Pods/Target Support Files/image_picker_ios/image_picker_ios-dummy.m`
+        - Installing target `local_auth_darwin` iOS 12.0
+          - Generating Info.plist file at `Pods/Target Support Files/local_auth_darwin/ResourceBundle-local_auth_darwin_privacy-local_auth_darwin-Info.plist`
+          - Generating module map file at `Pods/Target Support Files/local_auth_darwin/local_auth_darwin.modulemap`
+          - Generating umbrella header at `Pods/Target Support Files/local_auth_darwin/local_auth_darwin-umbrella.h`
+          - Generating Info.plist file at `Pods/Target Support Files/local_auth_darwin/local_auth_darwin-Info.plist`
+          - Generating dummy source at `Pods/Target Support Files/local_auth_darwin/local_auth_darwin-dummy.m`
+        - Installing target `nanopb` iOS 12.0
+          - Generating Info.plist file at `Pods/Target Support Files/nanopb/ResourceBundle-nanopb_Privacy-nanopb-Info.plist`
+          - Generating module map file at `Pods/Target Support Files/nanopb/nanopb.modulemap`
+          - Generating umbrella header at `Pods/Target Support Files/nanopb/nanopb-umbrella.h`
+          - Generating Info.plist file at `Pods/Target Support Files/nanopb/nanopb-Info.plist`
+          - Generating dummy source at `Pods/Target Support Files/nanopb/nanopb-dummy.m`
+        - Installing target `path_provider_foundation` iOS 12.0
+          - Generating Info.plist file at `Pods/Target Support Files/path_provider_foundation/ResourceBundle-path_provider_foundation_privacy-path_provider_foundation-Info.plist`
+          - Generating module map file at `Pods/Target Support Files/path_provider_foundation/path_provider_foundation.modulemap`
+          - Generating umbrella header at `Pods/Target Support Files/path_provider_foundation/path_provider_foundation-umbrella.h`
+          - Generating Info.plist file at `Pods/Target Support Files/path_provider_foundation/path_provider_foundation-Info.plist`
+          - Generating dummy source at `Pods/Target Support Files/path_provider_foundation/path_provider_foundation-dummy.m`
+        - Installing target `share_plus` iOS 12.0
+          - Generating Info.plist file at `Pods/Target Support Files/share_plus/ResourceBundle-share_plus_privacy-share_plus-Info.plist`
+          - Generating module map file at `Pods/Target Support Files/share_plus/share_plus.modulemap`
+          - Generating umbrella header at `Pods/Target Support Files/share_plus/share_plus-umbrella.h`
+          - Generating Info.plist file at `Pods/Target Support Files/share_plus/share_plus-Info.plist`
+          - Generating dummy source at `Pods/Target Support Files/share_plus/share_plus-dummy.m`
+        - Installing target `url_launcher_ios` iOS 12.0
+          - Generating Info.plist file at `Pods/Target Support Files/url_launcher_ios/ResourceBundle-url_launcher_ios_privacy-url_launcher_ios-Info.plist`
+          - Generating module map file at `Pods/Target Support Files/url_launcher_ios/url_launcher_ios.modulemap`
+          - Generating umbrella header at `Pods/Target Support Files/url_launcher_ios/url_launcher_ios-umbrella.h`
+          - Generating Info.plist file at `Pods/Target Support Files/url_launcher_ios/url_launcher_ios-Info.plist`
+          - Generating dummy source at `Pods/Target Support Files/url_launcher_ios/url_launcher_ios-dummy.m`
+      - Installing Aggregate Targets
+        - Installing target `Pods-Runner` iOS 15.5
+          - Generating Info.plist file at `Pods/Target Support Files/Pods-Runner/Pods-Runner-Info.plist`
+          - Generating module map file at `Pods/Target Support Files/Pods-Runner/Pods-Runner.modulemap`
+          - Generating umbrella header at `Pods/Target Support Files/Pods-Runner/Pods-Runner-umbrella.h`
+          - Generating dummy source at `Pods/Target Support Files/Pods-Runner/Pods-Runner-dummy.m`
+        - Installing target `Pods-RunnerTests` iOS 15.5
+          - Generating Info.plist file at `Pods/Target Support Files/Pods-RunnerTests/Pods-RunnerTests-Info.plist`
+          - Generating module map file at `Pods/Target Support Files/Pods-RunnerTests/Pods-RunnerTests.modulemap`
+          - Generating umbrella header at `Pods/Target Support Files/Pods-RunnerTests/Pods-RunnerTests-umbrella.h`
+          - Generating dummy source at `Pods/Target Support Files/Pods-RunnerTests/Pods-RunnerTests-dummy.m`
+      - Generating deterministic UUIDs
+      - Stabilizing target UUIDs
+      - Running post install hooks
+        - Podfile
+      - Writing Xcode project file to `Pods/Pods.xcodeproj`
+    [!] Cancelled
+
+Error output from CocoaPods:
+↳
+         % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                        Dload  Upload   Total   Spent    Left  Speed
+            0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0     0  793k    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0   100  793k  100  793k    0     0   594k      0  0:00:01  0:00:01 --:--:--  594k
+         % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                        Dload  Upload   Total   Spent    Left  Speed
+            0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0     0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0     0 28.3M    0  239k    0     0   230k      0  0:02:05  0:00:01  0:02:04  230k    30 28.3M   30 8927k    0     0  4400k      0  0:00:06  0:00:02  0:00:04 4400k    58 28.3M   58 16.7M    0     0  5489k      0  0:00:05  0:00:03  0:00:02 5488k    89 28.3M   89 25.3M    0     0  6397k      0  0:00:04  0:00:04 --:--:-- 6396k   100 28.3M  100 28.3M    0     0  6698k      0  0:00:04  0:00:04 --:--:-- 6783k
+         % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                        Dload  Upload   Total   Spent    Left  Speed
+            0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0     0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0   100  342k  100  342k    0     0   310k      0  0:00:01  0:00:01 --:--:--  310k
+         Cloning into '/var/folders/5h/v9gdd_fn511fsl78c_vchflm0000gn/T/d20260224-14044-42wyq1'...
+         Note: switching to 'b7e1104502eca3a213b46303391ca4d3bc8ddec1'.
+
+         You are in 'detached HEAD' state. You can look around, make experimental
+         changes and commit them, and you can discard any commits you make in this
+         state without impacting any branches by switching back to a branch.
+
+         If you want to create a new branch to retain commits you create, you may
+         do so (now or later) by using -c with the switch command. Example:
+
+           git switch -c <new-branch-name>
+
+         Or undo this operation with:
+
+           git switch -
+
+         Turn off this advice by setting config variable advice.detachedHead to false
+
+    /Library/Ruby/Gems/2.6.0/gems/nanaimo-0.4.0/lib/nanaimo/writer/pbxproj.rb:56:in `block in sort_dictionary': Interrupt
+    	from /Library/Ruby/Gems/2.6.0/gems/nanaimo-0.4.0/lib/nanaimo/writer/pbxproj.rb:53:in `each'
+    	from /Library/Ruby/Gems/2.6.0/gems/nanaimo-0.4.0/lib/nanaimo/writer/pbxproj.rb:53:in `sort_by'
+    	from /Library/Ruby/Gems/2.6.0/gems/nanaimo-0.4.0/lib/nanaimo/writer/pbxproj.rb:53:in `sort_dictionary'
+    	from /Library/Ruby/Gems/2.6.0/gems/nanaimo-0.4.0/lib/nanaimo/writer/pbxproj.rb:22:in `write_dictionary'
+    	from /Library/Ruby/Gems/2.6.0/gems/nanaimo-0.4.0/lib/nanaimo/writer.rb:78:in `write_object'
+    	from /Library/Ruby/Gems/2.6.0/gems/nanaimo-0.4.0/lib/nanaimo/writer.rb:172:in `write_dictionary_key_value_pair'
+    	from /Library/Ruby/Gems/2.6.0/gems/nanaimo-0.4.0/lib/nanaimo/writer/pbxproj.rb:48:in `write_dictionary_key_value_pair'
+    	from /Library/Ruby/Gems/2.6.0/gems/nanaimo-0.4.0/lib/nanaimo/writer.rb:151:in `block in write_dictionary'
+    	from /Library/Ruby/Gems/2.6.0/gems/nanaimo-0.4.0/lib/nanaimo/writer.rb:150:in `each'
+    	from /Library/Ruby/Gems/2.6.0/gems/nanaimo-0.4.0/lib/nanaimo/writer.rb:150:in `write_dictionary'
+    	from /Library/Ruby/Gems/2.6.0/gems/nanaimo-0.4.0/lib/nanaimo/writer/pbxproj.rb:22:in `write_dictionary'
+    	from /Library/Ruby/Gems/2.6.0/gems/nanaimo-0.4.0/lib/nanaimo/writer.rb:78:in `write_object'
+    	from /Library/Ruby/Gems/2.6.0/gems/nanaimo-0.4.0/lib/nanaimo/writer.rb:172:in `write_dictionary_key_value_pair'
+    	from /Library/Ruby/Gems/2.6.0/gems/nanaimo-0.4.0/lib/nanaimo/writer/pbxproj.rb:48:in `write_dictionary_key_value_pair'
+    	from /Library/Ruby/Gems/2.6.0/gems/nanaimo-0.4.0/lib/nanaimo/writer/pbxproj.rb:32:in `block (2 levels) in write_dictionary'
+    	from /Library/Ruby/Gems/2.6.0/gems/nanaimo-0.4.0/lib/nanaimo/writer/pbxproj.rb:31:in `each'
+    	from /Library/Ruby/Gems/2.6.0/gems/nanaimo-0.4.0/lib/nanaimo/writer/pbxproj.rb:31:in `block in write_dictionary'
+    	from /Library/Ruby/Gems/2.6.0/gems/nanaimo-0.4.0/lib/nanaimo/writer/pbxproj.rb:27:in `each'
+    	from /Library/Ruby/Gems/2.6.0/gems/nanaimo-0.4.0/lib/nanaimo/writer/pbxproj.rb:27:in `write_dictionary'
+    	from /Library/Ruby/Gems/2.6.0/gems/nanaimo-0.4.0/lib/nanaimo/writer.rb:78:in `write_object'
+    	from /Library/Ruby/Gems/2.6.0/gems/nanaimo-0.4.0/lib/nanaimo/writer.rb:172:in `write_dictionary_key_value_pair'
+    	from /Library/Ruby/Gems/2.6.0/gems/nanaimo-0.4.0/lib/nanaimo/writer/pbxproj.rb:48:in `write_dictionary_key_value_pair'
+    	from /Library/Ruby/Gems/2.6.0/gems/nanaimo-0.4.0/lib/nanaimo/writer.rb:151:in `block in write_dictionary'
+    	from /Library/Ruby/Gems/2.6.0/gems/nanaimo-0.4.0/lib/nanaimo/writer.rb:150:in `each'
+    	from /Library/Ruby/Gems/2.6.0/gems/nanaimo-0.4.0/lib/nanaimo/writer.rb:150:in `write_dictionary'
+    	from /Library/Ruby/Gems/2.6.0/gems/nanaimo-0.4.0/lib/nanaimo/writer/pbxproj.rb:22:in `write_dictionary'
+    	from /Library/Ruby/Gems/2.6.0/gems/nanaimo-0.4.0/lib/nanaimo/writer.rb:78:in `write_object'
+    	from /Library/Ruby/Gems/2.6.0/gems/nanaimo-0.4.0/lib/nanaimo/writer.rb:48:in `write'
+    	from /Library/Ruby/Gems/2.6.0/gems/xcodeproj-1.27.0/lib/xcodeproj/project.rb:365:in `block in save'
+    	from /Library/Ruby/Gems/2.6.0/gems/atomos-0.1.3/lib/atomos.rb:21:in `block in atomic_write'
+    	from /System/Library/Frameworks/Ruby.framework/Versions/2.6/usr/lib/ruby/2.6.0/tempfile.rb:295:in `open'
+    	from /Library/Ruby/Gems/2.6.0/gems/atomos-0.1.3/lib/atomos.rb:17:in `atomic_write'
+    	from /Library/Ruby/Gems/2.6.0/gems/xcodeproj-1.27.0/lib/xcodeproj/project.rb:364:in `save'
+    	from /Users/therize/.gem/ruby/2.6.0/gems/cocoapods-1.12.1/lib/cocoapods/installer/xcode/pods_project_generator/pods_project_writer.rb:83:in `block (2 levels) in save_projects'
+    	from /Users/therize/.gem/ruby/2.6.0/gems/cocoapods-1.12.1/lib/cocoapods/user_interface.rb:149:in `message'
+    	from /Users/therize/.gem/ruby/2.6.0/gems/cocoapods-1.12.1/lib/cocoapods/installer/xcode/pods_project_generator/pods_project_writer.rb:82:in `block in save_projects'
+    	from /Users/therize/.gem/ruby/2.6.0/gems/cocoapods-1.12.1/lib/cocoapods/installer/xcode/pods_project_generator/pods_project_writer.rb:80:in `each'
+    	from /Users/therize/.gem/ruby/2.6.0/gems/cocoapods-1.12.1/lib/cocoapods/installer/xcode/pods_project_generator/pods_project_writer.rb:80:in `save_projects'
+    	from /Users/therize/.gem/ruby/2.6.0/gems/cocoapods-1.12.1/lib/cocoapods/installer/xcode/pods_project_generator/pods_project_writer.rb:63:in `write!'
+    	from /Users/therize/.gem/ruby/2.6.0/gems/cocoapods-1.12.1/lib/cocoapods/installer.rb:336:in `block in create_and_save_projects'
+    	from /Users/therize/.gem/ruby/2.6.0/gems/cocoapods-1.12.1/lib/cocoapods/user_interface.rb:64:in `section'
+    	from /Users/therize/.gem/ruby/2.6.0/gems/cocoapods-1.12.1/lib/cocoapods/installer.rb:315:in `create_and_save_projects'
+    	from /Users/therize/.gem/ruby/2.6.0/gems/cocoapods-1.12.1/lib/cocoapods/installer.rb:307:in `generate_pods_project'
+    	from /Users/therize/.gem/ruby/2.6.0/gems/cocoapods-1.12.1/lib/cocoapods/installer.rb:183:in `integrate'
+    	from /Users/therize/.gem/ruby/2.6.0/gems/cocoapods-1.12.1/lib/cocoapods/installer.rb:170:in `install!'
+    	from /Users/therize/.gem/ruby/2.6.0/gems/cocoapods-1.12.1/lib/cocoapods/command/install.rb:52:in `run'
+    	from /Library/Ruby/Gems/2.6.0/gems/claide-1.1.0/lib/claide/command.rb:334:in `run'
+    	from /Users/therize/.gem/ruby/2.6.0/gems/cocoapods-1.12.1/lib/cocoapods/command.rb:52:in `run'
+    	from /Users/therize/.gem/ruby/2.6.0/gems/cocoapods-1.12.1/bin/pod:55:in `<top (required)>'
+    	from /Users/therize/.gem/ruby/2.6.0/bin/pod:23:in `load'
+    	from /Users/therize/.gem/ruby/2.6.0/bin/pod:23:in `<main>'
+
+Error running pod install
