@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp"
+    android:background="@drawable/widget_bg">
+
+    <!-- Header -->
+    <LinearLayout
+        android:id="@+id/header"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="🎯"
+            android:textColor="#CCFFFFFF"
+            android:textSize="14sp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:text="Mục tiêu"
+            android:textSize="12sp"
+            android:textColor="#CCFFFFFF" />
+    </LinearLayout>
+
+    <!-- Goal Name -->
+    <TextView
+        android:id="@+id/savings_goal_name"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/header"
+        android:layout_marginTop="8dp"
+        android:text="Tên mục tiêu"
+        android:textColor="#FFFFFF"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:singleLine="true"
+        android:ellipsize="end" />
+
+    <!-- Current Amount -->
+    <TextView
+        android:id="@+id/savings_current_value"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/savings_goal_name"
+        android:layout_marginTop="2dp"
+        android:text="0₫"
+        android:textColor="#4CAF50"
+        android:textSize="20sp"
+        android:textStyle="bold" />
+
+    <!-- Bottom Section -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:orientation="vertical">
+
+        <ProgressBar
+            android:id="@+id/savings_progress"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="6dp"
+            android:progressDrawable="@drawable/progress_bar_horizontal"
+            android:max="100"
+            android:progress="0"
+            android:layout_marginBottom="6dp" />
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+            <TextView
+                android:id="@+id/savings_target_value"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="/ 0₫"
+                android:textColor="#99FFFFFF"
+                android:textSize="10sp"
+                android:layout_alignParentStart="true" />
+            <TextView
+                android:id="@+id/savings_goal_count"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0 hũ"
+                android:textColor="#99FFFFFF"
+                android:textSize="10sp"
+                android:layout_alignParentEnd="true" />
+        </RelativeLayout>
+    </LinearLayout>
+
+    <!-- Hidden stubs for Kotlin provider -->
+    <TextView
+        android:id="@+id/savings_percent"
+        android:layout_width="0dp"
+        android:layout_height="0dp" />
+    <TextView
+        android:id="@+id/savings_remaining"
+        android:layout_width="0dp"
+        android:layout_height="0dp" />
+
+</RelativeLayout>

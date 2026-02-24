@@ -1,0 +1,401 @@
+import 'package:flutter/material.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'models/transaction_model.dart';
+import 'screens/add_transaction_screen.dart';
+import 'widgets/weekly_chart_widget.dart';
+import 'package:intl/intl.dart';
+
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter/foundation.dart'; // For kDebugMode
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  bool hiveInitialized = false;
+  String? initError;
+
+  try {
+    // Khởi tạo Hive
+    await Hive.initFlutter();
+    Hive.registerAdapter(TransactionAdapter());
+    await Hive.openBox<Transaction>('transactions');
+    hiveInitialized = true;
+  } catch (e, stackTrace) {
+    if (kDebugMode) {
+      print("Error initializing Hive: $e");
+      print("Stack trace: $stackTrace");
+    }
+    initError = e.toString();
+  }
+
+  runApp(MyApp(hiveInitialized: hiveInitialized, initError: initError));
+}
+
+class MyApp extends StatelessWidget {
+  final bool hiveInitialized;
+  final String? initError;
+
+  const MyApp({super.key, required this.hiveInitialized, this.initError});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Quản Lý Chi Tiêu',
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [Locale('vi', 'VN')],
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
+        useMaterial3: true,
+      ),
+      home: hiveInitialized
+          ? const MyHomePage(title: 'Quản Lý Chi Tiêu Hàng Ngày')
+          : ErrorScreen(error: initError ?? 'Unknown error'),
+    );
+  }
+}
+
+class ErrorScreen extends StatelessWidget {
+  final String error;
+
+  const ErrorScreen({super.key, required this.error});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Lỗi Khởi Tạo'),
+        backgroundColor: Colors.red,
+      ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, size: 80, color: Colors.red),
+              const SizedBox(height: 20),
+              const Text(
+                'Không thể khởi tạo ứng dụng',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Lỗi: $error',
+                style: const TextStyle(fontSize: 16),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 30),
+              const Text(
+                'Vui lòng khởi động lại ứng dụng',
+                style: TextStyle(fontSize: 16, color: Colors.grey),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class MyHomePage extends StatefulWidget {
+  const MyHomePage({super.key, required this.title});
+
+  final String title;
+
+  @override
+  State<MyHomePage> createState() => _MyHomePageState();
+}
+
+class _MyHomePageState extends State<MyHomePage> {
+  final double _dailyLimit = 500000; // 500k/ngày
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          widget.title,
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: Colors.teal,
+        elevation: 4,
+      ),
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            // Biểu đồ tuần
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: WeeklyChartWidget(dailyLimit: _dailyLimit),
+            ),
+            SizedBox(height: 20),
+
+            // Thống kê hôm nay
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: ValueListenableBuilder(
+                valueListenable: Hive.box<Transaction>(
+                  'transactions',
+                ).listenable(),
+                builder: (context, box, _) {
+                  DateTime now = DateTime.now();
+                  double todaySpent = box.values
+                      .where(
+                        (t) =>
+                            t.date.year == now.year &&
+                            t.date.month == now.month &&
+                            t.date.day == now.day,
+                      )
+                      .fold(0, (sum, t) => sum + t.amount);
+
+                  double remaining = _dailyLimit - todaySpent;
+                  bool isOverBudget = todaySpent > _dailyLimit;
+
+                  return Card(
+                    elevation: 4,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(20.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Thống kê hôm nay",
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          SizedBox(height: 20),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    "Đã tiêu:",
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                  Text(
+                                    NumberFormat.currency(
+                                      locale: 'vi',
+                                      symbol: 'đ',
+                                      decimalDigits: 0,
+                                    ).format(todaySpent),
+                                    style: TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    "Còn lại:",
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                  Text(
+                                    NumberFormat.currency(
+                                      locale: 'vi',
+                                      symbol: 'đ',
+                                      decimalDigits: 0,
+                                    ).format(
+                                      remaining.clamp(0, double.infinity),
+                                    ),
+                                    style: TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.bold,
+                                      color: isOverBudget
+                                          ? Colors.red
+                                          : Colors.green,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          if (isOverBudget)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 20.0),
+                              child: Container(
+                                padding: EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.shade100,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: Colors.red),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.warning_amber_rounded,
+                                      color: Colors.red,
+                                      size: 24,
+                                    ),
+                                    SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        "⚠️ Vượt hạn mức ${NumberFormat.currency(locale: 'vi', symbol: 'đ', decimalDigits: 0).format((todaySpent - _dailyLimit).abs())}",
+                                        style: TextStyle(
+                                          color: Colors.red,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            SizedBox(height: 20),
+
+            // Danh sách giao dịch hôm nay
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  "Lịch sử giao dịch hôm nay",
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+            ),
+            SizedBox(height: 10),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: ValueListenableBuilder(
+                valueListenable: Hive.box<Transaction>(
+                  'transactions',
+                ).listenable(),
+                builder: (context, box, _) {
+                  DateTime now = DateTime.now();
+                  final todayTransactions = box.values
+                      .where(
+                        (t) =>
+                            t.date.year == now.year &&
+                            t.date.month == now.month &&
+                            t.date.day == now.day,
+                      )
+                      .toList()
+                      .reversed
+                      .toList();
+
+                  if (todayTransactions.isEmpty) {
+                    return Padding(
+                      padding: const EdgeInsets.all(20.0),
+                      child: Text(
+                        "Chưa có giao dịch hôm nay",
+                        style: TextStyle(fontSize: 18, color: Colors.grey),
+                      ),
+                    );
+                  }
+
+                  return ListView.builder(
+                    shrinkWrap: true,
+                    physics: NeverScrollableScrollPhysics(),
+                    itemCount: todayTransactions.length,
+                    itemBuilder: (context, index) {
+                      final transaction = todayTransactions[index];
+                      return Card(
+                        margin: EdgeInsets.only(bottom: 10),
+                        elevation: 2,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: ListTile(
+                          leading: Container(
+                            padding: EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: transaction.isOverBudget
+                                  ? Colors.red.shade100
+                                  : Colors.blue.shade100,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              Icons.shopping_bag,
+                              color: transaction.isOverBudget
+                                  ? Colors.red
+                                  : Colors.blue,
+                              size: 28,
+                            ),
+                          ),
+                          title: Text(
+                            transaction.category,
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          subtitle: Text(
+                            DateFormat('HH:mm').format(transaction.date),
+                            style: TextStyle(fontSize: 14, color: Colors.grey),
+                          ),
+                          trailing: Text(
+                            NumberFormat.currency(
+                              locale: 'vi',
+                              symbol: 'đ',
+                              decimalDigits: 0,
+                            ).format(transaction.amount),
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+            SizedBox(height: 20),
+          ],
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) =>
+                  AddTransactionScreen(dailyLimit: _dailyLimit),
+            ),
+          );
+        },
+        backgroundColor: Colors.teal,
+        tooltip: "Thêm chi tiêu",
+        child: Icon(Icons.add, size: 32),
+      ),
+    );
+  }
+}

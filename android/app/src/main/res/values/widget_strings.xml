@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_daily_desc">Chi tiêu hôm nay</string>
+    <string name="widget_weekly_desc">Tổng kết tuần</string>
+    <string name="widget_forecast_desc">Dự báo chi tiêu</string>
+    <string name="widget_savings_desc">Mục tiêu tiết kiệm</string>
+    <string name="widget_quick_add_desc">Thêm nhanh chi tiêu</string>
+</resources>

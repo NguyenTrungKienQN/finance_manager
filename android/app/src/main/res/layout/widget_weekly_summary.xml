@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp"
+    android:background="@drawable/widget_bg">
+
+    <!-- Header -->
+    <LinearLayout
+        android:id="@+id/header"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="📊"
+            android:textColor="#CCFFFFFF"
+            android:textSize="14sp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:text="Tuần này"
+            android:textSize="12sp"
+            android:textColor="#CCFFFFFF" />
+    </LinearLayout>
+
+    <!-- Main Value -->
+    <TextView
+        android:id="@+id/weekly_total_value"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/header"
+        android:layout_marginTop="8dp"
+        android:text="0₫"
+        android:textColor="#F44336"
+        android:textSize="20sp"
+        android:textStyle="bold" />
+
+    <!-- 7-Day Bar Chart Section -->
+    <LinearLayout
+        android:id="@+id/chart_container"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:layout_below="@id/weekly_total_value"
+        android:layout_marginTop="12dp"
+        android:orientation="horizontal"
+        android:weightSum="7">
+
+        <ProgressBar android:id="@+id/bar_0" style="?android:attr/progressBarStyleHorizontal" android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent" android:layout_marginEnd="4dp" android:progressDrawable="@drawable/widget_progress_style" android:max="100" />
+        <ProgressBar android:id="@+id/bar_1" style="?android:attr/progressBarStyleHorizontal" android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent" android:layout_marginEnd="4dp" android:progressDrawable="@drawable/widget_progress_style" android:max="100" />
+        <ProgressBar android:id="@+id/bar_2" style="?android:attr/progressBarStyleHorizontal" android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent" android:layout_marginEnd="4dp" android:progressDrawable="@drawable/widget_progress_style" android:max="100" />
+        <ProgressBar android:id="@+id/bar_3" style="?android:attr/progressBarStyleHorizontal" android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent" android:layout_marginEnd="4dp" android:progressDrawable="@drawable/widget_progress_style" android:max="100" />
+        <ProgressBar android:id="@+id/bar_4" style="?android:attr/progressBarStyleHorizontal" android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent" android:layout_marginEnd="4dp" android:progressDrawable="@drawable/widget_progress_style" android:max="100" />
+        <ProgressBar android:id="@+id/bar_5" style="?android:attr/progressBarStyleHorizontal" android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent" android:layout_marginEnd="4dp" android:progressDrawable="@drawable/widget_progress_style" android:max="100" />
+        <ProgressBar android:id="@+id/bar_6" style="?android:attr/progressBarStyleHorizontal" android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent" android:progressDrawable="@drawable/widget_progress_style" android:max="100" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/footer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/chart_container"
+        android:layout_marginTop="8dp"
+        android:text="TB/ngày: 0₫"
+        android:textColor="#99FFFFFF"
+        android:textSize="10sp" />
+
+</RelativeLayout>
