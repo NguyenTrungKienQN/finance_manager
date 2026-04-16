@@ -1,5 +1,6 @@
 // ignore_for_file: deprecated_member_use
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:archive/archive_io.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -33,30 +34,58 @@ class BackupService {
         if (box.isOpen) await box.flush();
       }
 
-      // 2. Get Hive directory
-      final appDir = await getApplicationDocumentsDirectory();
+      // 2. Get the ACTUAL Hive directory from an open box
+      final boxPath = Hive.box<Transaction>('transactions').path;
+      print("BACKUP DEBUG: boxPath = $boxPath");
+      if (boxPath == null) throw Exception('Không tìm thấy đường dẫn Hive storage');
+      final appDir = Directory(File(boxPath).parent.path);
 
-      // 3. Create zip file
-      final tempDir = await getTemporaryDirectory();
-      final backupFile = File('${tempDir.path}/finance_manager_backup.zip');
-
-      final encoder = ZipFileEncoder();
-      encoder.create(backupFile.path);
-
-      // Add all .hive files to zip
+      // Add all .hive files to zip in-memory. Use recursive listing.
       final dir = Directory(appDir.path);
-      dir.listSync().forEach((entity) {
+      int fileCount = 0;
+      final archive = Archive();
+      
+      print("BACKUP DEBUG: searching in ${dir.path}");
+      dir.listSync(recursive: true).forEach((entity) {
         if (entity is File && entity.path.endsWith('.hive')) {
-          encoder.addFile(entity);
+          final fileName = entity.uri.pathSegments.last;
+          final bytes = entity.readAsBytesSync();
+          print("BACKUP DEBUG: Adding $fileName (${bytes.length} bytes)");
+          archive.addFile(ArchiveFile(fileName, bytes.length, bytes));
+          fileCount++;
         }
       });
-      encoder.close();
 
-      // 4. Share the file
-      if (context.mounted) {
-        final xFile = XFile(backupFile.path, mimeType: 'application/zip');
-        await Share.shareXFiles([xFile],
-            text: 'Sao lưu dữ liệu Quản lý chi tiêu');
+      if (fileCount == 0) {
+        if (context.mounted) {
+           ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Không tìm thấy dữ liệu để sao lưu.')),
+          );
+        }
+        return;
+      }
+
+      print("BACKUP DEBUG: Encoding zip with $fileCount files...");
+      final zipData = ZipEncoder().encode(archive);
+      if (zipData == null) throw Exception('Lỗi mã hóa file zip');
+
+      // 4. Save the file using FilePicker (Save UI) instead of Share
+      final outputFile = await FilePicker.platform.saveFile(
+        dialogTitle: 'Lưu bản sao lưu',
+        fileName: 'finance_manager_backup.zip',
+        type: FileType.custom,
+        allowedExtensions: ['zip'],
+        bytes: Uint8List.fromList(zipData), // Pass bytes to let FilePicker handle SAF writing
+      );
+
+      if (outputFile != null) {
+        // FilePicker automatically writes the bytes to the picked location on Android/Web
+        // We just need to notify the user of success.
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+             SnackBar(content: Text('Đã lưu sao lưu thành công tại: $outputFile')),
+          );
+        }
       }
     } catch (e) {
       if (context.mounted) {
@@ -89,14 +118,19 @@ class BackupService {
           return;
         }
 
-        // 1. Close all active boxes
+        // 1. Get the ACTUAL Hive directory from an open box BEFORE closing
+        final boxPath = Hive.box<Transaction>('transactions').path;
+        if (boxPath == null) throw Exception('Không tìm thấy đường dẫn Hive storage');
+        final appDir = Directory(File(boxPath).parent.path);
+
+        // 2. Close all active boxes so we can safely overwrite files
         await Hive.close();
 
-        // 2. Extract zip to Hive directory
-        final appDir = await getApplicationDocumentsDirectory();
+        // 3. Extract zip to Hive directory
         final bytes = File(filePath).readAsBytesSync();
         final archive = ZipDecoder().decodeBytes(bytes);
 
+        int filesRestored = 0;
         for (final file in archive) {
           final filename = file.name;
           if (file.isFile && filename.endsWith('.hive')) {
@@ -104,7 +138,28 @@ class BackupService {
             File('${appDir.path}/$filename')
               ..createSync(recursive: true)
               ..writeAsBytesSync(data);
+            filesRestored++;
           }
+        }
+
+        if (filesRestored == 0) {
+           if (context.mounted) {
+             ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('File backup trống hoặc không hợp lệ.')),
+             );
+           }
+           // Must reopen the boxes if we aborted after closing them!
+           await Future.wait([
+            Hive.openBox<Transaction>('transactions'),
+            Hive.openBox<double>('budgetBox'),
+            Hive.openBox<AppSettings>('settings'),
+            Hive.openBox<SavingsGoal>('savingsGoals'),
+            Hive.openBox<RecurringTransaction>('recurringTransactions'),
+            Hive.openBox<DebtRecord>('debtRecords'),
+            Hive.openBox<HabitBreaker>('habitBreakers'),
+            Hive.openBox('currency_data'),
+           ]);
+           return;
         }
 
         // 3. Re-open boxes (similar to main.dart)
@@ -134,13 +189,13 @@ class BackupService {
                   Expanded(child: Text('Khôi phục thành công!')),
                 ],
               ),
-              content: const Text('Dữ liệu đã được khôi phục.'),
+              content: const Text('Ứng dụng sẽ đóng để áp dụng dữ liệu. Vui lòng mở lại ứng dụng sau đó.'),
               actions: [
                 TextButton(
                   onPressed: () {
-                    Navigator.pop(context); // close dialog
+                    exit(0); // Force close app so Hive re-reads from disk on next launch
                   },
-                  child: const Text('OK'),
+                  child: const Text('Đóng ứng dụng'),
                 ),
               ],
             ),

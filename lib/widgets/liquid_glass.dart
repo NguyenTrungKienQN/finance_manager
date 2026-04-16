@@ -18,7 +18,7 @@ class LiquidGlassContainer extends StatelessWidget {
     super.key,
     required this.child,
     this.borderRadius = 28,
-    this.blurSigma = 25,
+    this.blurSigma = 10,
     this.opacity = 0.12,
     this.borderGlow,
     this.padding,

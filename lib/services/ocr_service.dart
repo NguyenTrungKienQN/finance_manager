@@ -1,15 +1,8 @@
-import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:vision_text_recognition/vision_text_recognition.dart';
 
 class OcrService {
-  TextRecognizer? _textRecognizer;
-
-  TextRecognizer get textRecognizer {
-    _textRecognizer ??= TextRecognizer(script: TextRecognitionScript.latin);
-    return _textRecognizer!;
-  }
-
   /// Parse VND amount from various formats:
   /// - 200000 (plain number)
   /// - 200.000 (dot as thousand separator)
@@ -62,8 +55,19 @@ class OcrService {
 
   Future<double> scanReceipt(String imagePath) async {
     try {
-      final inputImage = InputImage.fromFile(File(imagePath));
-      final recognizedText = await textRecognizer.processImage(inputImage);
+      // Read image file as bytes for vision_text_recognition
+      final imageBytes = await File(imagePath).readAsBytes();
+
+      // Use accurate recognition for best receipt scanning results
+      final config = TextRecognitionConfig(
+        recognitionLevel: RecognitionLevel.accurate,
+        usesLanguageCorrection: false,
+      );
+
+      final result = await VisionTextRecognition.recognizeTextWithConfig(
+        imageBytes,
+        config,
+      );
 
       double maxAmount = 0.0;
 
@@ -75,19 +79,17 @@ class OcrService {
         RegExp(r'\d{4,}'), // Plain numbers with 4+ digits (like 50000)
       ];
 
-      for (TextBlock block in recognizedText.blocks) {
-        for (TextLine line in block.lines) {
-          String text = line.text;
+      for (final block in result.textBlocks) {
+        String text = block.text;
 
-          // Try each pattern
-          for (var pattern in pricePatterns) {
-            for (var match in pattern.allMatches(text)) {
-              String matchedText = match.group(0) ?? '';
-              double? value = parseVndAmount(matchedText);
+        // Try each pattern
+        for (var pattern in pricePatterns) {
+          for (var match in pattern.allMatches(text)) {
+            String matchedText = match.group(0) ?? '';
+            double? value = parseVndAmount(matchedText);
 
-              if (value != null && value > maxAmount && value >= 1000) {
-                maxAmount = value;
-              }
+            if (value != null && value > maxAmount && value >= 1000) {
+              maxAmount = value;
             }
           }
         }
@@ -100,6 +102,6 @@ class OcrService {
   }
 
   void dispose() {
-    _textRecognizer?.close();
+    // vision_text_recognition handles cleanup automatically
   }
 }

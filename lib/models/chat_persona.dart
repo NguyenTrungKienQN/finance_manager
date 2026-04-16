@@ -73,4 +73,15 @@ $financialContext''';
         return 'Hiii bestieee 💅✨ nghe nói bạn muốn nói về tiền hả? Oki let me see cái ví của bạn real quick nha~ 👀';
     }
   }
+
+  String get imagePath {
+    switch (this) {
+      case ChatPersona.expert:
+        return 'assets/mascots/expert.png';
+      case ChatPersona.strictMom:
+        return 'assets/mascots/strict_mom.png';
+      case ChatPersona.sassyFriend:
+        return 'assets/mascots/sassy_friend.png';
+    }
+  }
 }

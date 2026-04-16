@@ -17,6 +17,7 @@ class _PrivacyWrapperState extends State<PrivacyWrapper>
   bool _isAuthenticated = false;
   bool _isBackground = false;
   bool _isAuthenticating = false; // Guard against re-entry loop
+  bool _wasPaused = false;
   final BiometricService _biometricService = BiometricService();
 
   @override
@@ -76,6 +77,7 @@ class _PrivacyWrapperState extends State<PrivacyWrapper>
       setState(() {
         _isBackground = true;
         _isAuthenticated = false;
+        _wasPaused = true;
       });
     } else if (state == AppLifecycleState.inactive) {
       // Show blur for app switcher preview, but do NOT reset auth
@@ -86,10 +88,11 @@ class _PrivacyWrapperState extends State<PrivacyWrapper>
       setState(() {
         _isBackground = false;
       });
-      // Do NOT automatically call _authenticate() here!
-      // When biometric dialog closes (fail/cancel), the app resumes.
-      // Auto-calling it here defeats the purpose of the "Try Again" button
-      // and can cause infinite Face ID prompt loops.
+      // Auto-authenticate safely when returning from background
+      if (!_isAuthenticated && _wasPaused) {
+        _wasPaused = false;
+        _authenticate();
+      }
     }
   }
 

@@ -1,3 +1,4 @@
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hive/hive.dart';
@@ -74,6 +75,62 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       HapticFeedback.heavyImpact();
       bool? confirm = await _showOverLimitDialog(todaySpent);
       if (confirm != true) return;
+
+      // PUNISHMENT: Show Angry Mascot
+      if (mounted) {
+        showGeneralDialog(
+          context: context,
+          barrierDismissible: false,
+          barrierColor: Colors.black.withValues(alpha: 0.6),
+          transitionDuration: const Duration(milliseconds: 400),
+          pageBuilder: (ctx, anim1, anim2) {
+            return BackdropFilter(
+              filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+              child: Center(
+                child: Material(
+                  type: MaterialType.transparency,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Image.asset(
+                        'assets/mascots/mascotangry.png',
+                        height: 250,
+                        fit: BoxFit.contain,
+                      ),
+                      const SizedBox(height: 24),
+                      const Text(
+                        'Đã cảnh báo rồi mà!',
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.redAccent,
+                          shadows: [
+                            Shadow(color: Colors.black54, blurRadius: 10)
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+          transitionBuilder: (ctx, anim1, anim2, child) {
+            // Elastic bounce up
+            final curvedValue = Curves.elasticOut.transform(anim1.value) - 1.0;
+            return Transform.translate(
+              offset: Offset(0, curvedValue * 200),
+              child: FadeTransition(opacity: anim1, child: child),
+            );
+          },
+        );
+
+        // Wait 2 seconds for visual impact
+        await Future.delayed(const Duration(seconds: 2));
+        if (mounted) {
+          Navigator.pop(context); // Close the angry splash
+        }
+      }
     }
 
     final transaction = Transaction(
@@ -132,110 +189,131 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Theme.of(
-                  context,
-                ).colorScheme.error.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Icon(
-                Icons.warning_amber_rounded,
-                color: Theme.of(context).colorScheme.error,
-                size: 48,
-              ),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Vượt hạn mức!',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Khoản này sẽ khiến chi tiêu hôm nay vượt hạn mức.',
-              style: TextStyle(
-                color: Theme.of(context).textTheme.bodyMedium?.color,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 20),
-            Container(
-              padding: const EdgeInsets.all(16),
+      builder: (context) => Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.bottomCenter,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 80), // Space for Mascot
+            child: Container(
+              padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
                 color: Theme.of(context).cardColor,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(28)),
               ),
               child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  _buildInfoRow('Đã tiêu', todaySpent),
-                  Divider(color: Theme.of(context).dividerColor, height: 16),
-                  _buildInfoRow('Khoản mới', _totalAmount),
-                  Divider(color: Theme.of(context).dividerColor, height: 16),
-                  _buildInfoRow(
-                    'Tổng cộng',
-                    todaySpent + _totalAmount,
-                    isTotal: true,
+                  // Handle
+                  Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 20),
+                    decoration: BoxDecoration(
+                      color:
+                          Theme.of(context).dividerColor.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
-                  Divider(color: Theme.of(context).dividerColor, height: 16),
-                  _buildInfoRow('Hạn mức', widget.dailyLimit, isLimit: true),
+                  const Text(
+                    'Vượt hạn mức!',
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Khoản này sẽ khiến chi tiêu hôm nay vượt hạn mức.',
+                    style: TextStyle(
+                      color: Theme.of(context).textTheme.bodyMedium?.color,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 20),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      children: [
+                        _buildInfoRow('Đã tiêu', todaySpent),
+                        Divider(
+                            color: Theme.of(context).dividerColor, height: 16),
+                        _buildInfoRow('Khoản mới', _totalAmount),
+                        Divider(
+                            color: Theme.of(context).dividerColor, height: 16),
+                        _buildInfoRow(
+                          'Tổng cộng',
+                          todaySpent + _totalAmount,
+                          isTotal: true,
+                        ),
+                        Divider(
+                            color: Theme.of(context).dividerColor, height: 16),
+                        _buildInfoRow('Hạn mức', widget.dailyLimit,
+                            isLimit: true),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            side: BorderSide(
+                              color: Theme.of(context)
+                                      .textTheme
+                                      .bodyMedium
+                                      ?.color
+                                      ?.withValues(alpha: 0.3) ??
+                                  Colors.grey,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child:
+                              const Text('Hủy', style: TextStyle(fontSize: 16)),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            backgroundColor:
+                                Theme.of(context).colorScheme.error,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text(
+                            'Vẫn lưu',
+                            style: TextStyle(fontSize: 16, color: Colors.white),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
                 ],
               ),
             ),
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.pop(context, false),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      side: BorderSide(
-                        color: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
-                                ?.color
-                                ?.withValues(alpha: 0.3) ??
-                            Colors.grey,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: const Text('Hủy', style: TextStyle(fontSize: 16)),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pop(context, true),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      backgroundColor: Theme.of(context).colorScheme.error,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: const Text(
-                      'Vẫn lưu',
-                      style: TextStyle(fontSize: 16, color: Colors.white),
-                    ),
-                  ),
-                ),
-              ],
+          ),
+          Positioned(
+            top: 0,
+            right: 20,
+            child: Image.asset(
+              'assets/mascots/mascotmad.png',
+              height: 130,
+              fit: BoxFit.contain,
             ),
-            const SizedBox(height: 16),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

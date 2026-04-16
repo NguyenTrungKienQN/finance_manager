@@ -175,13 +175,10 @@ class MyHomePage extends StatefulWidget {
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
+class _MyHomePageState extends State<MyHomePage> {
   int _currentIndex = 0;
   final List<int> _navHistory = [0];
   bool _isDockDragging = false; // Long-press drag mode
-  late AnimationController _starBlinkController;
-  late Animation<double> _starBlinkAnim;
-
   final List<Widget> _screens = [
     const DashboardScreen(),
     const SavingsGoalsScreen(),
@@ -193,23 +190,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
 
   static const int _tabCount = 6;
 
-  @override
-  void initState() {
-    super.initState();
-    _starBlinkController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1500),
-    )..repeat(reverse: true);
-    _starBlinkAnim = Tween<double>(begin: 0.3, end: 1.0).animate(
-      CurvedAnimation(parent: _starBlinkController, curve: Curves.easeInOut),
-    );
-  }
 
-  @override
-  void dispose() {
-    _starBlinkController.dispose();
-    super.dispose();
-  }
 
   void _navigateTo(int index) {
     if (index == _currentIndex || index < 0 || index >= _tabCount) return;
@@ -365,7 +346,6 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                                 Icons.auto_awesome,
                                 'AI Chat',
                                 itemWidth,
-                                blinkAnimation: _starBlinkAnim,
                               ),
                             ],
                           ),
@@ -386,11 +366,9 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
     int index,
     IconData icon,
     String label,
-    double width, {
-    Animation<double>? blinkAnimation,
-  }) {
+    double width,
+  ) {
     final bool isSelected = _currentIndex == index;
-    // final bool isPopped = _isDockDragging && _pressedIndex == index; // Removed popup effect
 
     Widget iconWidget = Icon(
       icon,
@@ -399,17 +377,6 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
           : Theme.of(context).textTheme.bodyMedium?.color,
       size: 24,
     );
-
-    // Apply blinking animation if provided and not selected
-    if (blinkAnimation != null && !isSelected) {
-      iconWidget = AnimatedBuilder(
-        animation: blinkAnimation,
-        builder: (context, child) {
-          return Opacity(opacity: blinkAnimation.value, child: child);
-        },
-        child: iconWidget,
-      );
-    }
 
     return GestureDetector(
       onTap: () => _navigateTo(index),

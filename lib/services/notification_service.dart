@@ -73,20 +73,25 @@ class NotificationService {
     // Cancel previous daily notification before rescheduling
     await flutterLocalNotificationsPlugin.cancel(_dailyMorningId);
 
-    // Schedule at 7:00 AM every day
-    final now = tz.TZDateTime.now(tz.local);
-    var scheduledDate = tz.TZDateTime(
-      tz.local,
-      now.year,
-      now.month,
-      now.day,
+    // We calculate exactly how much time from 'now' to 7:00 AM using native local time
+    final localNow = DateTime.now();
+    var targetLocalTime = DateTime(
+      localNow.year,
+      localNow.month,
+      localNow.day,
       7,
       0,
       0,
     );
-    if (scheduledDate.isBefore(now)) {
-      scheduledDate = scheduledDate.add(const Duration(days: 1));
+    
+    if (targetLocalTime.isBefore(localNow)) {
+      targetLocalTime = targetLocalTime.add(const Duration(days: 1));
     }
+
+    final durationToWait = targetLocalTime.difference(localNow);
+    
+    // Add that precise difference to whatever tz.local thinks the current time is (usually UTC)
+    var scheduledDate = tz.TZDateTime.now(tz.local).add(durationToWait);
 
     await flutterLocalNotificationsPlugin.zonedSchedule(
       _dailyMorningId,
@@ -95,15 +100,15 @@ class NotificationService {
       scheduledDate,
       const NotificationDetails(
         android: AndroidNotificationDetails(
-          'daily_morning_channel',
+          'daily_morning_channel_v3',
           'Lời nhắc buổi sáng',
           channelDescription: 'Thông báo ngân sách hàng ngày mỗi buổi sáng',
-          importance: Importance.defaultImportance,
-          priority: Priority.defaultPriority,
+          importance: Importance.max,
+          priority: Priority.max,
         ),
         iOS: DarwinNotificationDetails(),
       ),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       matchDateTimeComponents: DateTimeComponents.time, // Repeat daily
     );
   }
@@ -118,9 +123,14 @@ class NotificationService {
     int interval = 1,
     DateTime? specificDate,
   }) async {
-    final scheduledDate = specificDate != null
-        ? tz.TZDateTime.from(specificDate, tz.local)
-        : _nextInstance(dayOfMonth, monthOfYear, isYearly);
+    // Generate the exact target date using native device LOCAL time
+    final targetLocalTime = specificDate ?? _nextInstanceLocal(dayOfMonth, monthOfYear, isYearly);
+
+    final localNow = DateTime.now();
+    final durationToWait = targetLocalTime.difference(localNow);
+    
+    // Add that precise difference to whatever tz.local thinks the current time is (usually UTC)
+    final scheduledDate = tz.TZDateTime.now(tz.local).add(durationToWait);
 
     final matchComponents = (interval == 1)
         ? (isYearly
@@ -135,24 +145,24 @@ class NotificationService {
       scheduledDate,
       const NotificationDetails(
         android: AndroidNotificationDetails(
-          'recurring_channel',
+          'recurring_channel_v2', // Bumped ID to bypass old cached system rules
           'Thanh toán định kỳ',
           channelDescription: 'Nhắc nhở thanh toán hóa đơn định kỳ',
           importance: Importance.max,
           priority: Priority.high,
         ),
       ),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       matchDateTimeComponents: matchComponents,
     );
   }
 
-  tz.TZDateTime _nextInstance(int day, int? month, bool isYearly) {
-    final tz.TZDateTime now = tz.TZDateTime.now(tz.local);
+  DateTime _nextInstanceLocal(int day, int? month, bool isYearly) {
+    final now = DateTime.now();
 
+    // Schedule for 9:00 AM local time
     if (isYearly && month != null) {
-      tz.TZDateTime scheduledDate = tz.TZDateTime(
-        tz.local,
+      DateTime scheduledDate = DateTime(
         now.year,
         month,
         day,
@@ -161,8 +171,7 @@ class NotificationService {
         0,
       );
       if (scheduledDate.isBefore(now)) {
-        scheduledDate = tz.TZDateTime(
-          tz.local,
+        scheduledDate = DateTime(
           now.year + 1,
           month,
           day,
@@ -173,8 +182,7 @@ class NotificationService {
       }
       return scheduledDate;
     } else {
-      tz.TZDateTime scheduledDate = tz.TZDateTime(
-        tz.local,
+      DateTime scheduledDate = DateTime(
         now.year,
         now.month,
         day,
@@ -191,8 +199,7 @@ class NotificationService {
             nextMonth = 1;
             nextYear = now.year + 1;
           }
-          scheduledDate = tz.TZDateTime(
-            tz.local,
+          scheduledDate = DateTime(
             nextYear,
             nextMonth,
             day,

@@ -67,139 +67,158 @@ class _HabitBreakerScreenState extends State<HabitBreakerScreen> {
         return StatefulBuilder(
           builder: (ctx, setSheetState) {
             final theme = Theme.of(ctx);
-            return LiquidGlassContainer(
-              borderRadius: 28,
-              blurSigma: 30,
-              opacity: 0.08,
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(ctx).viewInsets.bottom,
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Handle
-                    Center(
-                      child: Container(
-                        width: 40,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: theme.dividerColor,
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
+            return Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: 90),
+                  child: LiquidGlassContainer(
+                    borderRadius: 28,
+                    blurSigma: 30,
+                    opacity: 0.08,
+                    padding: EdgeInsets.only(
+                      bottom: MediaQuery.of(ctx).viewInsets.bottom,
                     ),
-                    const SizedBox(height: 20),
-                    Text(
-                      'Thêm thử thách mới',
-                      style: theme.textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Habit name
-                    TextField(
-                      controller: nameController,
-                      decoration: InputDecoration(
-                        labelText: 'Tên thói quen cần bỏ',
-                        hintText: 'Ví dụ: Trà sữa, Cà phê, ...',
-                        filled: true,
-                        fillColor: theme.canvasColor,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide.none,
-                        ),
-                        prefixIcon: Icon(
-                          _getIcon(selectedIcon),
-                          color: theme.primaryColor,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Icon picker
-                    Text(
-                      'Chọn biểu tượng',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: iconOptions.entries.map((entry) {
-                        final isSelected = entry.key == selectedIcon;
-                        return GestureDetector(
-                          onTap: () {
-                            setSheetState(() => selectedIcon = entry.key);
-                          },
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? theme.primaryColor.withValues(alpha: 0.15)
-                                  : theme.canvasColor,
-                              borderRadius: BorderRadius.circular(12),
-                              border: isSelected
-                                  ? Border.all(
-                                      color: theme.primaryColor,
-                                      width: 2,
-                                    )
-                                  : null,
-                            ),
-                            child: Icon(
-                              entry.value,
-                              color: isSelected
-                                  ? theme.primaryColor
-                                  : theme.iconTheme.color,
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Handle
+                          Center(
+                            child: Container(
+                              width: 40,
+                              height: 4,
+                              decoration: BoxDecoration(
+                                color: theme.dividerColor,
+                                borderRadius: BorderRadius.circular(2),
+                              ),
                             ),
                           ),
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 24),
+                          const SizedBox(height: 20),
+                          Text(
+                            'Thêm thử thách mới',
+                            style: theme.textTheme.titleLarge,
+                          ),
+                          const SizedBox(height: 20),
 
-                    // Save button
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          if (nameController.text.trim().isEmpty) return;
-                          final box = Hive.box<HabitBreaker>('habitBreakers');
-                          final habit = HabitBreaker(
-                            id: DateTime.now()
-                                .millisecondsSinceEpoch
-                                .toString(),
-                            habitName: nameController.text.trim(),
-                            iconName: selectedIcon,
-                          );
-                          box.add(habit);
-                          Navigator.pop(ctx);
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: theme.primaryColor,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
+                          // Habit name
+                          TextField(
+                            controller: nameController,
+                            decoration: InputDecoration(
+                              labelText: 'Tên thói quen cần bỏ',
+                              hintText: 'Ví dụ: Trà sữa, Cà phê, ...',
+                              filled: true,
+                              fillColor: theme.canvasColor,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                borderSide: BorderSide.none,
+                              ),
+                              prefixIcon: Icon(
+                                _getIcon(selectedIcon),
+                                color: theme.primaryColor,
+                              ),
+                            ),
                           ),
-                        ),
-                        child: const Text(
-                          'Bắt đầu thử thách 🔥',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                          const SizedBox(height: 16),
+
+                          // Icon picker
+                          Text(
+                            'Chọn biểu tượng',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: iconOptions.entries.map((entry) {
+                              final isSelected = entry.key == selectedIcon;
+                              return GestureDetector(
+                                onTap: () {
+                                  setSheetState(() => selectedIcon = entry.key);
+                                },
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: isSelected
+                                        ? theme.primaryColor
+                                            .withValues(alpha: 0.15)
+                                        : theme.canvasColor,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: isSelected
+                                        ? Border.all(
+                                            color: theme.primaryColor,
+                                            width: 2,
+                                          )
+                                        : null,
+                                  ),
+                                  child: Icon(
+                                    entry.value,
+                                    color: isSelected
+                                        ? theme.primaryColor
+                                        : theme.iconTheme.color,
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                          const SizedBox(height: 24),
+
+                          // Save button
+                          SizedBox(
+                            width: double.infinity,
+                            height: 52,
+                            child: ElevatedButton(
+                              onPressed: () {
+                                if (nameController.text.trim().isEmpty) return;
+                                final box =
+                                    Hive.box<HabitBreaker>('habitBreakers');
+                                final habit = HabitBreaker(
+                                  id: DateTime.now()
+                                      .millisecondsSinceEpoch
+                                      .toString(),
+                                  habitName: nameController.text.trim(),
+                                  iconName: selectedIcon,
+                                );
+                                box.add(habit);
+                                Navigator.pop(ctx);
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: theme.primaryColor,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                              ),
+                              child: const Text(
+                                'Bắt đầu thử thách 🔥',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 8),
-                  ],
+                  ),
                 ),
-              ),
+                Positioned(
+                  top: 0,
+                  right: 28,
+                  child: Image.asset(
+                    'assets/mascots/mascotask.png',
+                    height: 130, // Big enough to overlap nicely
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              ],
             );
           },
         );
@@ -791,8 +810,8 @@ class _GameOverOverlayState extends State<_GameOverOverlay>
               ),
               const SizedBox(height: 24),
 
-              // Broken heart
-              const Text('💔', style: TextStyle(fontSize: 72)),
+              // Sad Mascot
+              Image.asset('assets/mascots/mascotsad.png', height: 120),
               const SizedBox(height: 24),
 
               // Stats

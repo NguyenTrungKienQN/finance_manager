@@ -26,6 +26,7 @@ class _AIChatScreenState extends State<AIChatScreen>
   types.User get _aiAuthor => types.User(
         id: 'ai',
         firstName: _geminiService.currentPersona.displayName,
+        imageUrl: _geminiService.currentPersona.imagePath,
       );
 
   @override
@@ -340,6 +341,29 @@ class _AIChatScreenState extends State<AIChatScreen>
               user: _userAuthor,
               showUserAvatars: true,
               showUserNames: true,
+              avatarBuilder: (user) {
+                if (user.id == 'ai' && user.imageUrl != null) {
+                  return Container(
+                    margin: const EdgeInsets.only(right: 8),
+                    child: Image.asset(
+                      user.imageUrl!,
+                      width: 64,
+                      height: 64,
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        width: 64,
+                        height: 64,
+                        decoration: BoxDecoration(
+                          color: AppTheme.softPurple.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.face, size: 32, color: AppTheme.softPurple),
+                      ),
+                    ),
+                  );
+                }
+                return const SizedBox.shrink();
+              },
               typingIndicatorOptions: TypingIndicatorOptions(
                 typingUsers: _isTyping ? [_aiAuthor] : [],
               ),

@@ -1,3 +1,4 @@
+import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -13,6 +14,7 @@ import '../widgets/dashboard_stack.dart';
 import '../theme/app_theme.dart';
 import '../models/habit_breaker_model.dart';
 import '../models/recurring_transaction_model.dart';
+import '../widgets/home_widgets/modern_home_widgets.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -35,6 +37,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
     Hive.box<Transaction>(
       'transactions',
     ).listenable().addListener(_updateHomeWidget);
+
+    _checkForWidgetLaunch();
+    HomeWidget.widgetClicked.listen(_launchedFromWidget);
+  }
+
+  void _checkForWidgetLaunch() {
+    HomeWidget.initiallyLaunchedFromHomeWidget().then(_launchedFromWidget);
+  }
+
+  void _launchedFromWidget(Uri? uri) {
+    if (uri != null && uri.scheme == 'fmanager' && uri.host == 'add_transaction') {
+      Future.delayed(const Duration(milliseconds: 100), () async {
+        if (mounted) {
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => AddTransactionScreen(dailyLimit: _dailyLimit)),
+          );
+          
+          if (result != null && result is HabitBreaker) {
+            result.resetStreak();
+            if (mounted) {
+              _showHabitBrokenDialog(result);
+            }
+          }
+          
+          _updateHomeWidget();
+        }
+      });
+    }
   }
 
   @override
@@ -62,6 +93,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   void _updateHomeWidget() async {
     if (kIsWeb) return; // Prevent Home Widget code from executing on web
+    
+    // Helper to get exact widget size requested by Android
+    Future<Size> getWidgetLogicalSize(String key, Size defaultSize) async {
+      try {
+        final width = await HomeWidget.getWidgetData<int>('${key}_width');
+        final height = await HomeWidget.getWidgetData<int>('${key}_height');
+        if (width != null && height != null && width > 0 && height > 0) {
+          // Add 10% padding buffer since dp conversion isn't always exact pixel perfect on Android
+          return Size(width.toDouble() * 1.1, height.toDouble() * 1.1);
+        }
+      } catch (e) {
+        if (kDebugMode) print("Error reading widget size for \$key: \$e");
+      }
+      return defaultSize;
+    }
+
     try {
       final now = DateTime.now();
       final box = Hive.box<Transaction>('transactions');
@@ -77,14 +124,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
           )
           .fold(0.0, (sum, t) => sum + t.amount);
 
-      await HomeWidget.saveWidgetData<String>(
-        'todaySpent',
-        todaySpent.toString(),
-      );
-      await HomeWidget.saveWidgetData<String>(
-        'dailyLimit',
-        _dailyLimit.toString(),
-      );
+      try {
+        await HomeWidget.renderFlutterWidget(
+          DailyBalanceHomeWidget(spent: todaySpent, limit: _dailyLimit),
+          logicalSize: await getWidgetLogicalSize('widget_daily_balance', const Size(360, 170)),
+          key: 'widget_daily_balance_image',
+        );
+        await HomeWidget.saveWidgetData<String>('todaySpent', todaySpent.toString());
+        await HomeWidget.saveWidgetData<String>('dailyLimit', _dailyLimit.toString());
+      } catch (e) {
+        if (kDebugMode) print("Error rendering daily balance widget: $e");
+      }
 
       // === Weekly Summary Data ===
       final weekStart = now.subtract(Duration(days: now.weekday - 1));
@@ -126,26 +176,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
           dailyTotals[index] += t.amount;
         }
       }
-      for (int i = 0; i < 7; i++) {
-        await HomeWidget.saveWidgetData<String>(
-          'day$i',
-          dailyTotals[i].toString(),
+      
+      try {
+        await HomeWidget.renderFlutterWidget(
+          WeeklySummaryHomeWidget(weeklyTotal: weeklyTotal, dailyAverage: weeklyAvg),
+          logicalSize: await getWidgetLogicalSize('widget_weekly_summary', const Size(360, 170)),
+          key: 'widget_weekly_summary_image',
         );
+        await HomeWidget.saveWidgetData<String>('weekSpent', weeklyTotal.toString());
+        await HomeWidget.saveWidgetData<String>('topCategory', topCategory);
+        await HomeWidget.saveWidgetData<String>('categoryAmount', topCategoryAmount.toString());
+      } catch (e) {
+        if (kDebugMode) print("Error rendering weekly summary widget: $e");
       }
-
-      await HomeWidget.saveWidgetData<String>(
-        'weeklyTotal',
-        weeklyTotal.toString(),
-      );
-      await HomeWidget.saveWidgetData<String>(
-        'weeklyAvg',
-        weeklyAvg.toString(),
-      );
-      await HomeWidget.saveWidgetData<String>('topCategory', topCategory);
-      await HomeWidget.saveWidgetData<String>(
-        'topCategoryAmount',
-        topCategoryAmount.toString(),
-      );
 
       // === Forecast Data ===
       final daysInMonth = DateUtils.getDaysInMonth(now.year, now.month);
@@ -161,43 +204,39 @@ class _DashboardScreenState extends State<DashboardScreen> {
       double projectedTotal = monthlySpent + (avgDailySpend * daysRemaining);
       double monthlyBudget = _monthlySalary;
 
-      await HomeWidget.saveWidgetData<String>(
-        'projectedTotal',
-        projectedTotal.toString(),
-      );
-      await HomeWidget.saveWidgetData<String>(
-        'monthlyBudget',
-        monthlyBudget.toString(),
-      );
-      await HomeWidget.saveWidgetData<String>(
-        'avgDailySpend',
-        avgDailySpend.toString(),
-      );
-      await HomeWidget.saveWidgetData<String>(
-        'monthlySpent',
-        monthlySpent.toString(),
-      );
+      try {
+        await HomeWidget.renderFlutterWidget(
+          ForecastHomeWidget(
+            projectedTotal: projectedTotal,
+            monthlyBudget: monthlyBudget,
+            avgDailySpend: avgDailySpend,
+          ),
+          logicalSize: await getWidgetLogicalSize('widget_forecast', const Size(360, 170)),
+          key: 'widget_forecast_image',
+        );
+        await HomeWidget.saveWidgetData<String>('projectedSpend', projectedTotal.toString());
+        await HomeWidget.saveWidgetData<String>('monthlyBudget', monthlyBudget.toString());
+        await HomeWidget.saveWidgetData<String>('avgDailySpend', avgDailySpend.toString());
+      } catch (_) {}
 
       // === Habit Breaker Data ===
       try {
         final habitBox = Hive.box<HabitBreaker>('habitBreakers');
         final activeHabits = habitBox.values.where((h) => h.isActive).toList();
 
+        String habitName = "Chưa có thói quen";
+        int streak = 0;
+        String status = "Thêm mới ngay";
+
         if (activeHabits.isNotEmpty) {
           activeHabits.sort(
             (a, b) => b.currentStreak.compareTo(a.currentStreak),
           );
           final topHabit = activeHabits.first;
-          await HomeWidget.saveWidgetData<String>(
-            'habitName',
-            topHabit.habitName,
-          );
-          await HomeWidget.saveWidgetData<String>(
-            'habitStreak',
-            topHabit.currentStreak.toString(),
-          );
+          habitName = topHabit.habitName;
+          streak = topHabit.currentStreak;
 
-          String status = "Bắt đầu ngay!";
+          status = "Bắt đầu ngay!";
           if (topHabit.currentStreak > 21) {
             status = "Tuyệt vời! 🔥";
           } else if (topHabit.currentStreak > 7) {
@@ -205,23 +244,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
           } else if (topHabit.currentStreak > 0) {
             status = "Khởi đầu tốt! 🌱";
           }
-
-          await HomeWidget.saveWidgetData<String>('habitStatus', status);
-        } else {
-          await HomeWidget.saveWidgetData<String>(
-            'habitName',
-            "Chưa có thói quen",
-          );
-          await HomeWidget.saveWidgetData<String>('habitStreak', "0");
-          await HomeWidget.saveWidgetData<String>(
-            'habitStatus',
-            "Thêm mới ngay",
-          );
         }
-        await HomeWidget.updateWidget(
-          androidName: 'HabitBreakerWidgetProvider',
-          iOSName: 'HabitBreakerWidget',
+        
+        await HomeWidget.renderFlutterWidget(
+          HabitBreakerHomeWidget(habitName: habitName, streak: streak, status: status),
+          logicalSize: await getWidgetLogicalSize('widget_habit_breaker', const Size(170, 170)),
+          key: 'widget_habit_breaker_image',
         );
+        await HomeWidget.saveWidgetData<String>('habitName', habitName);
+        await HomeWidget.saveWidgetData<String>('habitStreak', streak.toString());
+        await HomeWidget.saveWidgetData<String>('habitStatus', status);
       } catch (e) {
         if (kDebugMode) print("Error updating habit widget: $e");
       }
@@ -230,10 +262,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       try {
         final goalsBox = Hive.box<SavingsGoal>('savingsGoals');
         final goals = goalsBox.values.toList();
-        await HomeWidget.saveWidgetData<String>(
-          'savingsGoalCount',
-          goals.length.toString(),
-        );
+        String topGoalName = "—";
+        double topGoalCurrent = 0;
+        double topGoalTarget = 0;
+        
         if (goals.isNotEmpty) {
           goals.sort((a, b) {
             final pctA =
@@ -243,20 +275,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
             return pctB.compareTo(pctA);
           });
           final topGoal = goals.first;
-          await HomeWidget.saveWidgetData<String>('topGoalName', topGoal.name);
-          await HomeWidget.saveWidgetData<String>(
-            'topGoalCurrent',
-            topGoal.savedAmount.toString(),
-          );
-          await HomeWidget.saveWidgetData<String>(
-            'topGoalTarget',
-            topGoal.targetAmount.toString(),
-          );
-        } else {
-          await HomeWidget.saveWidgetData<String>('topGoalName', "—");
-          await HomeWidget.saveWidgetData<String>('topGoalCurrent', "0");
-          await HomeWidget.saveWidgetData<String>('topGoalTarget', "0");
+          topGoalName = topGoal.name;
+          topGoalCurrent = topGoal.savedAmount;
+          topGoalTarget = topGoal.targetAmount;
         }
+        
+        await HomeWidget.renderFlutterWidget(
+          SavingsGoalHomeWidget(
+            topGoalName: topGoalName,
+            goalCurrent: topGoalCurrent,
+            goalTarget: topGoalTarget,
+            goalCount: goals.length,
+          ),
+          logicalSize: await getWidgetLogicalSize('widget_savings_goal', const Size(360, 170)),
+          key: 'widget_savings_goal_image',
+        );
+        await HomeWidget.saveWidgetData<String>('topGoalName', topGoalName);
+        await HomeWidget.saveWidgetData<String>('topGoalCurrent', topGoalCurrent.toString());
+        await HomeWidget.saveWidgetData<String>('topGoalTarget', topGoalTarget.toString());
       } catch (_) {}
 
       // === Quick Add Data ===
@@ -266,10 +302,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
             t.date.month == now.month &&
             t.date.day == now.day,
       );
-      await HomeWidget.saveWidgetData<String>(
-        'todayTxCount',
-        todayTransactions.length.toString(),
-      );
+      try {
+        await HomeWidget.renderFlutterWidget(
+          QuickAddHomeWidget(todaySpent: todaySpent, txCount: todayTransactions.length),
+          logicalSize: await getWidgetLogicalSize('widget_quick_add', const Size(170, 170)),
+          key: 'widget_quick_add_image',
+        );
+        await HomeWidget.saveWidgetData<String>('quickAddTodaySpent', todaySpent.toString());
+        await HomeWidget.saveWidgetData<String>('quickAddTxCount', todayTransactions.length.toString());
+      } catch (_) {}
 
       // === Recurring Data ===
       try {
@@ -277,8 +318,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Hive.box<RecurringTransaction>('recurringTransactions');
         final items = recurringBox.values.toList();
 
+        String recurringTitle = "Chưa có";
+        double recurringAmount = 0.0;
+        int minDays = 0;
+
         if (items.isNotEmpty) {
-          int minDays = 9999;
+          minDays = 9999;
           RecurringTransaction? nextItem;
 
           for (var item in items) {
@@ -314,41 +359,49 @@ class _DashboardScreenState extends State<DashboardScreen> {
           }
 
           if (nextItem != null) {
-            await HomeWidget.saveWidgetData<String>(
-                'recurringTitle', nextItem.title);
-            await HomeWidget.saveWidgetData<String>(
-                'recurringAmount', nextItem.amount.toString());
-            await HomeWidget.saveWidgetData<String>(
-                'recurringDays', minDays.toString());
+            recurringTitle = nextItem.title;
+            recurringAmount = nextItem.amount;
+          } else {
+            minDays = 0;
           }
-        } else {
-          await HomeWidget.saveWidgetData<String>('recurringTitle', "Chưa có");
-          await HomeWidget.saveWidgetData<String>('recurringAmount', "0");
-          await HomeWidget.saveWidgetData<String>('recurringDays', "0");
         }
+        
+        await HomeWidget.renderFlutterWidget(
+          RecurringHomeWidget(
+            title: recurringTitle,
+            amount: recurringAmount,
+            daysUntilDue: minDays,
+          ),
+          logicalSize: await getWidgetLogicalSize('widget_recurring', const Size(360, 170)),
+          key: 'widget_recurring_image',
+        );
+        await HomeWidget.saveWidgetData<String>('recurringTitle', recurringTitle);
+        await HomeWidget.saveWidgetData<String>('recurringAmount', recurringAmount.toString());
+        await HomeWidget.saveWidgetData<String>('recurringDays', minDays.toString());
       } catch (e) {
         if (kDebugMode) print("Error updating recurring widget: $e");
       }
 
       // Update all 6 widgets
+      // Update all 6 widgets
       await HomeWidget.updateWidget(
-          androidName: 'DailyBalanceWidgetProvider',
+          name: 'DailyBalanceWidgetReceiver', androidName: 'DailyBalanceWidgetReceiver',
           iOSName: 'DailyBalanceWidget');
       await HomeWidget.updateWidget(
-          androidName: 'WeeklySummaryWidgetProvider',
+          name: 'WeeklySummaryWidgetReceiver', androidName: 'WeeklySummaryWidgetReceiver',
           iOSName: 'WeeklySummaryWidget');
       await HomeWidget.updateWidget(
-          androidName: 'ForecastWidgetProvider', iOSName: 'ForecastWidget');
+          name: 'ForecastWidgetReceiver', androidName: 'ForecastWidgetReceiver', iOSName: 'ForecastWidget');
       await HomeWidget.updateWidget(
-          androidName: 'SavingsGoalWidgetProvider',
+          name: 'SavingsGoalWidgetReceiver', androidName: 'SavingsGoalWidgetReceiver',
           iOSName: 'SavingsGoalWidget');
       await HomeWidget.updateWidget(
-          androidName: 'QuickAddWidgetProvider', iOSName: 'QuickAddWidget');
+          name: 'QuickAddWidgetReceiver', androidName: 'QuickAddWidgetReceiver', iOSName: 'QuickAddWidget');
       await HomeWidget.updateWidget(
-          androidName: 'HabitBreakerWidgetProvider',
+          name: 'HabitBreakerWidgetReceiver', androidName: 'HabitBreakerWidgetReceiver',
           iOSName: 'HabitBreakerWidget');
       await HomeWidget.updateWidget(
-          androidName: 'RecurringWidgetProvider', iOSName: 'RecurringWidget');
+          name: 'RecurringWidgetReceiver', androidName: 'RecurringWidgetReceiver', iOSName: 'RecurringWidget');
     } catch (e) {
       if (kDebugMode) {
         print('Error updating home widget: $e');
@@ -433,24 +486,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   children: [
                     Row(
                       children: [
-                        // Avatar / Profile Pic Placeholder
+                        // Avatar / Profile Pic
                         Container(
                           width: 48,
                           height: 48,
                           decoration: BoxDecoration(
-                            color: AppTheme.softPurple.withValues(alpha: 0.1),
                             shape: BoxShape.circle,
+                            border: Border.all(
+                              color: AppTheme.softPurple.withValues(alpha: 0.3),
+                              width: 1,
+                            ),
                           ),
-                          child: Center(
-                            child: Text(
-                              _userName.isNotEmpty
-                                  ? _userName[0].toUpperCase()
-                                  : "U",
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.softPurple,
-                              ),
+                          child: ClipOval(
+                            child: Image.asset(
+                              'assets/icon/app_icon.png',
+                              fit: BoxFit.cover,
                             ),
                           ),
                         ),
@@ -697,11 +747,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
             );
             if (result != null && result is HabitBreaker) {
               result.resetStreak();
-              _updateHomeWidget();
               if (mounted) {
                 _showHabitBrokenDialog(result);
               }
             }
+            // FORCE update iOS/Android homescreen widgets whenever we return
+            _updateHomeWidget();
           },
           backgroundColor: AppTheme.softPurple,
           foregroundColor: Colors.white,
@@ -912,9 +963,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
-                  "💔", // Broken Heart Emoji
-                  style: TextStyle(fontSize: 80),
+                Image.asset(
+                  'assets/mascots/mascotsad.png',
+                  height: 120, // Appropriately sized sad mascot
                 ),
                 const SizedBox(height: 16),
                 Text(

@@ -3,7 +3,7 @@
     android:minWidth="180dp"
     android:minHeight="180dp"
     android:updatePeriodMillis="1800000"
-    android:initialLayout="@layout/widget_savings_goal"
+    android:initialLayout="@layout/glance_default_loading"
     android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen"
     android:description="@string/widget_savings_desc"
