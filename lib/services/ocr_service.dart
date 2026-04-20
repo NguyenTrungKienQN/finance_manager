@@ -101,7 +101,5 @@ class OcrService {
     }
   }
 
-  void dispose() {
-    // vision_text_recognition handles cleanup automatically
-  }
+  void dispose() {}
 }

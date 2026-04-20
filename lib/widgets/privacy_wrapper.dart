@@ -2,6 +2,8 @@ import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import '../models/settings_model.dart';
 import '../services/biometric_service.dart';
 
 class PrivacyWrapper extends StatefulWidget {
@@ -24,7 +26,19 @@ class _PrivacyWrapperState extends State<PrivacyWrapper>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _authenticate();
+
+    // Initial logic: check if lock is enabled
+    final settings = _getSettings();
+    if (settings.enableAppLock) {
+      _authenticate();
+    } else {
+      _isAuthenticated = true; // Bypass
+    }
+  }
+
+  AppSettings _getSettings() {
+    final box = Hive.box<AppSettings>('settings');
+    return box.get('appSettings') ?? AppSettings();
   }
 
   @override
@@ -71,6 +85,9 @@ class _PrivacyWrapperState extends State<PrivacyWrapper>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    final settings = _getSettings();
+    if (!settings.enableAppLock) return; // Ignore lifecycle if lock is off
+
     if (state == AppLifecycleState.paused) {
       // ONLY on paused (actually leaving app), NOT inactive
       // inactive fires when biometric dialog shows — ignoring it prevents the loop
@@ -98,12 +115,14 @@ class _PrivacyWrapperState extends State<PrivacyWrapper>
 
   @override
   Widget build(BuildContext context) {
+    final settings = _getSettings();
+
     return Stack(
       children: [
         widget.child,
 
         // Blur / Lock Overlay
-        if (!_isAuthenticated || _isBackground)
+        if (settings.enableAppLock && (!_isAuthenticated || _isBackground))
           Positioned.fill(
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),

@@ -10,6 +10,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter/foundation.dart';
 
 import 'models/recurring_transaction_model.dart';
+import 'services/app_time_service.dart';
 import 'services/notification_service.dart';
 import 'widgets/privacy_wrapper.dart';
 import 'widgets/liquid_glass.dart';
@@ -21,6 +22,7 @@ import 'screens/ai_chat_screen.dart'; // Import AIChatScreen
 import 'models/debt_record_model.dart'; // Import DebtRecord model
 import 'models/habit_breaker_model.dart'; // Import HabitBreaker model
 import 'theme/app_theme.dart'; // Correctly placed import
+import 'services/migration_service.dart';
 
 // Modern color palette
 // AppColors class removed as we use AppTheme
@@ -32,6 +34,7 @@ void main() async {
   String? initError;
 
   try {
+    await AppTimeService.instance.init();
     await Hive.initFlutter();
     Hive.registerAdapter(TransactionAdapter());
     Hive.registerAdapter(AppSettingsAdapter());
@@ -52,13 +55,15 @@ void main() async {
       Hive.openBox<DebtRecord>('debtRecords'),
       Hive.openBox<HabitBreaker>('habitBreakers'),
       Hive.openBox('currency_data'),
+      Hive.openBox('notification_log'),
     ]);
 
     hiveInitialized = true;
 
-    // Schedule daily morning notification (non-blocking, fire and forget)
-    // We don't await this because the app can start while this schedules in background
-    NotificationService().scheduleDailyMorningNotification();
+    // Run data migrations after boxes are open
+    await MigrationService.runAllMigrations();
+
+    NotificationService().scheduleAllSmartNotifications();
   } catch (e, stackTrace) {
     if (kDebugMode) {
       print("Error initializing Hive: $e");
@@ -115,7 +120,9 @@ class MyApp extends StatelessWidget {
           builder: (context, child) {
             return PrivacyWrapper(child: child!);
           },
-          home: isFirstInstall ? const WelcomeScreen() : const MyHomePage(),
+          home: isFirstInstall
+              ? const WelcomeScreen()
+              : MyHomePage(key: MyHomePage.globalKey),
         );
       },
     );
@@ -171,11 +178,15 @@ class ErrorScreen extends StatelessWidget {
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key});
 
+  /// Global key for accessing the MyHomePage state from deep link handlers
+  static final GlobalKey<MyHomePageState> globalKey =
+      GlobalKey<MyHomePageState>();
+
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<MyHomePage> createState() => MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class MyHomePageState extends State<MyHomePage> {
   int _currentIndex = 0;
   final List<int> _navHistory = [0];
   bool _isDockDragging = false; // Long-press drag mode
@@ -190,7 +201,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
   static const int _tabCount = 6;
 
-
+  /// Public method for deep link navigation from child widgets
+  void navigateToTab(int index) => _navigateTo(index);
 
   void _navigateTo(int index) {
     if (index == _currentIndex || index < 0 || index >= _tabCount) return;

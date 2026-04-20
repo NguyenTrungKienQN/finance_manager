@@ -3,7 +3,9 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import '../models/debt_record_model.dart';
+import '../services/notification_service.dart';
 import '../widgets/currency_converter_sheet.dart';
+import '../utils/app_toast.dart';
 
 class DebtTrackerScreen extends StatefulWidget {
   const DebtTrackerScreen({super.key});
@@ -62,6 +64,8 @@ class _DebtTrackerScreenState extends State<DebtTrackerScreen> {
       );
       await _debtBox.add(debt);
     }
+
+    await NotificationService().scheduleAllSmartNotifications();
   }
 
   void _markAsPaid(DebtRecord debt) async {
@@ -69,14 +73,10 @@ class _DebtTrackerScreenState extends State<DebtTrackerScreen> {
     // I will delete it. Alternatively, mark isPaid=true and keep history?
     // User explicitly said "delete".
     await debt.delete();
+    await NotificationService().scheduleAllSmartNotifications();
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${debt.debtorName} đã trả tiền'),
-          backgroundColor: Theme.of(context).primaryColor,
-        ),
-      );
+      AppToast.show(context, '${debt.debtorName} đã trả tiền');
     }
   }
 

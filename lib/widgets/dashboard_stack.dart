@@ -1,13 +1,17 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:stacked_card_carousel/stacked_card_carousel.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:intl/intl.dart';
+import '../models/settings_model.dart';
 import 'daily_balance_card.dart';
 import 'weekly_summary_card.dart';
 import 'spending_forecast_card.dart';
 import 'savings_overview_card.dart';
 import 'monthly_summary_card.dart';
+import 'safe_balance_card.dart';
+import 'currency_converter_sheet.dart';
 
-class DashboardStack extends StatelessWidget {
+class DashboardStack extends StatefulWidget {
   final double dailyLimit;
   final double monthlySalary;
   final DateTime selectedDate;
@@ -19,68 +23,241 @@ class DashboardStack extends StatelessWidget {
     required this.selectedDate,
   });
 
-  @override
-  Widget build(BuildContext context) {
-    final double cardWidth = MediaQuery.of(context).size.width - 40;
-    const double cardHeight = 240.0;
-
-    final List<Widget> cards = [
-      _buildCard(
-        context,
-        DailyBalanceCard(dailyLimit: dailyLimit, selectedDate: selectedDate),
-        cardWidth,
-        cardHeight,
-      ),
-      _buildCard(
-        context,
-        WeeklySummaryCard(selectedDate: selectedDate),
-        cardWidth,
-        cardHeight,
-      ),
-      _buildCard(
-        context,
-        SpendingForecastCard(
-          dailyLimit: dailyLimit,
-          monthlySalary: monthlySalary,
+  static void showDepositDialog(BuildContext context) {
+    final controller = TextEditingController();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(ctx).viewInsets.bottom,
         ),
-        cardWidth,
-        cardHeight,
-      ),
-      _buildCard(context, const SavingsOverviewCard(), cardWidth, cardHeight),
-      _buildCard(
-        context,
-        MonthlySummaryCard(
-          dailyLimit: dailyLimit,
-          monthlySalary: monthlySalary,
-        ),
-        cardWidth,
-        cardHeight,
-      ),
-    ];
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: SizedBox(
-        height: cardHeight + 20,
-        child: StackedCardCarousel(
-          items: cards,
-          spaceBetweenItems: cardHeight,
-          initialOffset: 0,
-          type: StackedCardCarouselType.cardsStack,
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Nạp tiền vào Két sắt',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Tiết kiệm chỉ có ý nghĩa khi nó mang tính chủ động.',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontStyle: FontStyle.italic,
+                  color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.6),
+                ),
+              ),
+              const SizedBox(height: 24),
+              TextField(
+                controller: controller,
+                keyboardType: TextInputType.number,
+                autofocus: true,
+                decoration: InputDecoration(
+                  labelText: 'Số tiền nạp',
+                  hintText: '0',
+                  suffixText: 'đ',
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.currency_exchange),
+                    onPressed: () => CurrencyConverterSheet.show(ctx, targetController: controller),
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: () {
+                    final val = double.tryParse(controller.text.replaceAll(RegExp(r'[,.]'), '')) ?? 0;
+                    if (val > 0) {
+                      final box = Hive.box<AppSettings>('settings');
+                      final settings = box.get('appSettings') ?? AppSettings();
+                      settings.safeBalance += val;
+                      settings.save();
+                      Navigator.pop(ctx);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Đã nạp ${NumberFormat.simpleCurrency(locale: "vi_VN", decimalDigits: 0).format(val)} vào Két sắt')),
+                      );
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).primaryColor,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: const Text('Xác nhận nạp', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildCard(
-    BuildContext context,
-    Widget child,
-    double width,
-    double height,
-  ) {
-    return GestureDetector(
-      onTap: () => _showExpandedCards(context),
-      child: SizedBox(height: height, width: width, child: child),
+  @override
+  State<DashboardStack> createState() => _DashboardStackState();
+}
+
+class _DashboardStackState extends State<DashboardStack> {
+  bool _showOtterCard = false;
+  late PageController _pageController;
+  int _currentPage = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+    _checkOtterIntro();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void _checkOtterIntro() {
+    final settingsBox = Hive.box<AppSettings>('settings');
+    final settings = settingsBox.get('appSettings') ?? AppSettings();
+    if (!settings.hasSeenOtterIntro && !settings.isFirstInstall) {
+      _showOtterCard = true;
+    }
+  }
+
+  void _dismissOtterCard() {
+    final settingsBox = Hive.box<AppSettings>('settings');
+    final settings = settingsBox.get('appSettings') ?? AppSettings();
+    if (!settings.hasSeenOtterIntro) {
+      settings.hasSeenOtterIntro = true;
+      settings.save();
+    }
+    _pageController.nextPage(
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const double cardHeight = 240.0;
+
+    final List<Widget> cards = [];
+
+    if (_showOtterCard) {
+      cards.add(
+        GestureDetector(
+          onTap: _dismissOtterCard,
+          child: const _OtterWelcomeCard(),
+        ),
+      );
+    }
+
+    cards.addAll([
+      GestureDetector(
+        onTap: () => _showExpandedCards(context),
+        child: DailyBalanceCard(
+            dailyLimit: widget.dailyLimit, selectedDate: widget.selectedDate),
+      ),
+      SafeBalanceCard(
+        onDeposit: () => DashboardStack.showDepositDialog(context),
+      ),
+      GestureDetector(
+        onTap: () => _showExpandedCards(context),
+        child: WeeklySummaryCard(selectedDate: widget.selectedDate),
+      ),
+      GestureDetector(
+        onTap: () => _showExpandedCards(context),
+        child: SpendingForecastCard(
+          dailyLimit: widget.dailyLimit,
+          monthlySalary: widget.monthlySalary,
+        ),
+      ),
+      GestureDetector(
+        onTap: () => _showExpandedCards(context),
+        child: const SavingsOverviewCard(),
+      ),
+      GestureDetector(
+        onTap: () => _showExpandedCards(context),
+        child: MonthlySummaryCard(
+          dailyLimit: widget.dailyLimit,
+          monthlySalary: widget.monthlySalary,
+        ),
+      ),
+    ]);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: SizedBox(
+        height: cardHeight,
+        child: Stack(
+          children: [
+            // The actual vertical PageView — iOS Smart Stack style
+            ClipRRect(
+              borderRadius: BorderRadius.circular(24),
+              child: PageView.builder(
+                controller: _pageController,
+                scrollDirection: Axis.vertical,
+                itemCount: cards.length,
+                physics: const BouncingScrollPhysics(),
+                onPageChanged: (index) {
+                  setState(() => _currentPage = index);
+                },
+                itemBuilder: (context, index) {
+                  return cards[index];
+                },
+              ),
+            ),
+
+            // Right-side dot indicator (like iOS Smart Stack)
+            Positioned(
+              right: 6,
+              top: 0,
+              bottom: 0,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(cards.length, (i) {
+                  final isActive = i == _currentPage;
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    margin: const EdgeInsets.symmetric(vertical: 3),
+                    width: isActive ? 7 : 5,
+                    height: isActive ? 7 : 5,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: isActive
+                          ? Colors.white
+                          : Colors.white.withValues(alpha: 0.4),
+                      boxShadow: isActive
+                          ? [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.3),
+                                blurRadius: 4,
+                              )
+                            ]
+                          : null,
+                    ),
+                  );
+                }),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -93,9 +270,9 @@ class DashboardStack extends StatelessWidget {
       transitionDuration: const Duration(milliseconds: 300),
       pageBuilder: (context, anim1, anim2) {
         return _ExpandedCardsOverlay(
-          dailyLimit: dailyLimit,
-          monthlySalary: monthlySalary,
-          selectedDate: selectedDate,
+          dailyLimit: widget.dailyLimit,
+          monthlySalary: widget.monthlySalary,
+          selectedDate: widget.selectedDate,
           animation: anim1,
         );
       },
@@ -104,6 +281,144 @@ class DashboardStack extends StatelessWidget {
   }
 }
 
+// ============================================================
+// OTTER WELCOME CARD
+// ============================================================
+class _OtterWelcomeCard extends StatelessWidget {
+  const _OtterWelcomeCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(32),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF764BA2).withValues(alpha: 0.35),
+            blurRadius: 25,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
+        children: [
+          // Ambient glow orb
+          Positioned(
+            top: -20,
+            right: -20,
+            child: Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.white.withValues(alpha: 0.08),
+                    blurRadius: 60,
+                    spreadRadius: 20,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // Content row
+          Row(
+            children: [
+              // Mascot on the left
+              Padding(
+                padding: const EdgeInsets.only(right: 16),
+                child: Image.asset(
+                  'assets/mascots/mascotfirst.png',
+                  height: 150,
+                  fit: BoxFit.contain,
+                ),
+              ),
+              // Text content on the right
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'Xin chào,',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.75),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Tôi là Otter!',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 26,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.5,
+                        height: 1.1,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Trợ lý AI của bạn!',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.85),
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: const FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Nhấn để bắt đầu',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            SizedBox(width: 6),
+                            Icon(Icons.arrow_forward_rounded,
+                                color: Colors.white, size: 14),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ============================================================
+// EXPANDED CARDS OVERLAY (unchanged)
+// ============================================================
 class _ExpandedCardsOverlay extends StatefulWidget {
   final double dailyLimit;
   final double monthlySalary;
@@ -159,6 +474,7 @@ class _ExpandedCardsOverlayState extends State<_ExpandedCardsOverlay>
         dailyLimit: widget.dailyLimit,
         selectedDate: widget.selectedDate,
       ),
+      SafeBalanceCard(onDeposit: () => DashboardStack.showDepositDialog(context)),
       WeeklySummaryCard(selectedDate: widget.selectedDate),
       SpendingForecastCard(
         dailyLimit: widget.dailyLimit,

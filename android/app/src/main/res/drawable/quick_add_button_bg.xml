@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Subtle shadow effect simulated via a larger layer -->
+    <item>
+        <shape android:shape="oval">
+            <solid android:color="#1A7A7CFF" /> <!-- Semi-transparent Indigo shadow -->
+            <size android:width="64dp" android:height="64dp" />
+        </shape>
+    </item>
+    <!-- Main button - No offset to prevent grey ring -->
+    <item>
+        <shape android:shape="oval">
+            <gradient
+                android:startColor="#6FE0FF"
+                android:centerColor="#7A7CFF"
+                android:endColor="#B084FF"
+                android:angle="135" />
+            <size android:width="60dp" android:height="60dp" />
+        </shape>
+    </item>
+</layer-list>

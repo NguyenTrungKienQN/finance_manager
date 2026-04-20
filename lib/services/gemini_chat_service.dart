@@ -1,9 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
+import 'package:http/http.dart' as http;
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/chat_persona.dart';
 import '../models/settings_model.dart';
+import '../models/transaction_model.dart';
 import 'chat_context_service.dart';
 
 /// Manages the Gemini AI chat session with persona switching and rate limiting.
@@ -11,9 +14,11 @@ class GeminiChatService {
   // Default key injected securely at compile-time via --dart-define
   static const String _defaultApiKey = String.fromEnvironment('GEMINI_API_KEY');
 
-  ChatSession? _chatSession;
+  final List<Content> _history = [];
   ChatPersona _currentPersona = ChatPersona.expert;
-  String _currentModel = 'gemini-2.5-flash';
+  String _currentModel = 'gemini-2.5-flash'; 
+  DateTime? _lastContextUpdate;
+  String? _lastContext;
 
   ChatPersona get currentPersona => _currentPersona;
   String get currentModel => _currentModel;
@@ -99,39 +104,25 @@ class GeminiChatService {
       return result;
     } catch (_) {
       return [
+        'gemini-3.1-pro-preview',
+        'gemini-3-flash-preview',
         'gemini-2.5-flash',
         'gemini-2.5-pro',
         'gemini-2.0-flash',
-        'gemini-1.5-flash',
-        'gemini-1.5-pro',
       ];
     }
   }
 
-  /// Switches the active model and reinitializes the session.
+  /// Switches the active model and clears history for a fresh start.
   void switchModel(String modelName) {
     _currentModel = modelName;
-    _initSession();
+    reset();
   }
 
-  /// Initializes or reinitializes the chat session with the given persona.
+  /// Switches the persona and clears history.
   void switchPersona(ChatPersona persona) {
     _currentPersona = persona;
-    _initSession();
-  }
-
-  /// Creates a fresh Gemini model + chat session.
-  void _initSession() {
-    final context = ChatContextService.buildContext();
-    final systemPrompt = _currentPersona.systemInstruction(context);
-
-    final model = GenerativeModel(
-      model: _currentModel,
-      apiKey: _getApiKey(),
-      systemInstruction: Content.system(systemPrompt),
-    );
-
-    _chatSession = model.startChat();
+    reset();
   }
 
   /// Sends a message and returns the AI response.
@@ -140,20 +131,45 @@ class GeminiChatService {
       throw RateLimitException();
     }
 
-    if (_chatSession == null) {
-      _initSession();
+    final now = DateTime.now();
+
+    // Refresh context if it's been more than 10 seconds or session is empty
+    if (_lastContextUpdate == null ||
+        now.difference(_lastContextUpdate!).inSeconds > 10) {
+      _lastContext = ChatContextService.buildContext();
+      _lastContextUpdate = now;
     }
 
     try {
-      final response = await _chatSession!.sendMessage(Content.text(text));
+      final systemPrompt = _currentPersona.systemInstruction(_lastContext ?? "");
+      final model = GenerativeModel(
+        model: _currentModel,
+        apiKey: _getApiKey(),
+        systemInstruction: Content.system(systemPrompt),
+      );
+
+      // Start session with existing history
+      final session = model.startChat(history: List.from(_history));
+
+      final response = await session.sendMessage(Content.text(text));
       final reply = response.text ?? 'Xin lỗi, tôi không thể trả lời lúc này.';
+
+      // Update manual history
+      _history.add(Content.text(text));
+      _history.add(Content.model([TextPart(reply)]));
+
       _decrementUses();
       return reply;
     } catch (e) {
       if (e is RateLimitException) rethrow;
-      _chatSession = null;
       throw Exception('Lỗi kết nối AI: $e');
     }
+  }
+
+  /// Initializes or reinitializes the context tracking (used on screen entry).
+  void refresh() {
+    _lastContext = ChatContextService.buildContext();
+    _lastContextUpdate = DateTime.now();
   }
 
   /// Auto-sends a wallet analysis prompt.
@@ -165,9 +181,144 @@ class GeminiChatService {
     );
   }
 
-  /// Resets the session (for when user changes API key).
+  /// Resets the session (for when user changes API key or wants clear).
   void reset() {
-    _chatSession = null;
+    _history.clear();
+    _lastContextUpdate = null;
+    _lastContext = null;
+  }
+
+  /// Extracts amount and category intelligently from unstructured text, USING WEB SEARCH
+  Future<Map<String, dynamic>?> parseTransactionText(String text) async {
+    try {
+      final apiKey = _getApiKey();
+      final url = Uri.parse('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$apiKey');
+      
+      final payload = {
+        "systemInstruction": {
+          "parts": [{"text": "Bạn là trợ lý dữ liệu tài chính.\n"
+            "NHIỆM VỤ: Trích xuất số tiền và phân loại danh mục.\n"
+            "- Nếu phát hiện tên sản phẩm/dịch vụ (VD: Xiaomi 17 Ultra, Netflix), HÃY TÌM KIẾM WEB để lấy giá bán hiện tại tại Việt Nam.\n"
+            "- Các danh mục hợp lệ duy nhất: 'Ăn uống', 'Mua sắm', 'Giao thông', 'Giáo dục', 'Giải trí', 'Y tế', 'Khác'.\n"
+            "CHỈ trả về JSON nguyên chất.\n"
+            "Cấu trúc: {\"amount\": number, \"category\": \"string\"}"
+          }]
+        },
+        "contents": [
+          {"role": "user", "parts": [{"text": text}]}
+        ],
+        "tools": [
+          {"googleSearch": {}}
+        ]
+      };
+
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(payload),
+      );
+
+      if (response.statusCode != 200) {
+         debugPrint('[AI Parser Grounding] HTTP Error ${response.statusCode}: ${response.body}');
+         if (response.statusCode == 429) {
+           final match = RegExp(r'retry in ([\d\.]+)s').firstMatch(response.body);
+           if (match != null) {
+             final seconds = double.tryParse(match.group(1)!)?.round() ?? 60;
+             throw ApiBusyException(seconds);
+           }
+           throw ApiBusyException(60);
+         }
+         return null; 
+      }
+
+      final responseData = jsonDecode(response.body);
+      
+      final rawText = responseData['candidates']?[0]?['content']?['parts']?[0]?['text']?.trim() ?? '';
+      debugPrint('[AI Parser Grounding] Raw response: $rawText');
+      
+      var jsonString = rawText.replaceAll('```json', '').replaceAll('```', '').trim();
+      final jsonMatch = RegExp(r'\{[^}]+\}').firstMatch(jsonString);
+      if (jsonMatch != null) {
+        jsonString = jsonMatch.group(0)!;
+      }
+
+      debugPrint('[AI Parser Grounding] Parsed JSON: $jsonString');
+      return jsonDecode(jsonString) as Map<String, dynamic>;
+    } catch (e) {
+      if (e is ApiBusyException) rethrow;
+      debugPrint('[AI Parser Grounding] ERROR: $e');
+      return null;
+    }
+  }
+
+  /// Evaluates if a transaction breaks a habit using AI
+  Future<bool> doesTransactionBreakHabit(String habitName, String category, String note) async {
+    try {
+      final apiKey = _getApiKey();
+      final model = GenerativeModel(
+        model: 'gemini-2.5-flash',
+        apiKey: apiKey,
+        systemInstruction: Content.system(
+          "Bạn là trợ lý AI phân tích thói quen chi tiêu. "
+          "Nhiệm vụ của bạn là xác định xem một khoản chi tiêu có vi phạm thói quen đang cố bỏ của người dùng hay không.\n"
+          "Trả lời CHỈ BẰNG 1 TỪ duy nhất: 'YES' nếu vi phạm, hoặc 'NO' nếu không vi phạm."
+        ),
+      );
+
+      final prompt = "Thói quen cố bỏ: $habitName\n"
+          "Khoản chi tiêu vừa thêm: Danh mục: $category, Ghi chú: ${note.isEmpty ? 'Không có' : note}\n"
+          "Khoản này có phải là vi phạm hay không?";
+
+      final response = await model.generateContent([Content.text(prompt)]);
+      final text = response.text?.trim().toUpperCase() ?? 'NO';
+      
+      return text.contains('YES');
+    } catch (e) {
+      return false; // Fallback to safe side
+    }
+  }
+
+  /// Bulk categorization of messy transactions
+  Future<Map<String, String>?> batchCategorizeTransactions(List<Transaction> transactions) async {
+    try {
+      final apiKey = _getApiKey();
+      final model = GenerativeModel(
+        model: 'gemini-2.5-flash',
+        apiKey: apiKey,
+        systemInstruction: Content.system(
+          "Bạn là chuyên gia dọn dẹp dữ liệu tài chính.\n"
+          "NHIỆM VỤ: Phân loại lại danh sách các giao dịch có danh mục đang bị sai lệch.\n"
+          "- Các danh mục hợp lệ DUY NHẤT: 'Ăn uống', 'Mua sắm', 'Giao thông', 'Giáo dục', 'Giải trí', 'Y tế', 'Khác'.\n"
+          "Dựa vào tên/ghi chú của giao dịch (ví dụ 'Grab', 'HaoHao', 'Nhà thuốc'), hãy gán danh mục đúng.\n"
+          "CHỈ trả về JSON nguyên chất (không markdown). Khóa là ID giao dịch, giá trị là danh mục mới.\n"
+          "Ví dụ: {\"txn_id_123\": \"Ăn uống\", \"txn_id_456\": \"Giao thông\"}"
+        ),
+      );
+
+      final txListJson = transactions.map((tx) => {
+        "id": tx.id,
+        "amount": tx.amount,
+        "note": tx.notes ?? 'Không rõ'
+      }).toList();
+
+      final prompt = "Hành động: Phân loại danh sách giao dịch sau:\n${jsonEncode(txListJson)}";
+      
+      final response = await model.generateContent([Content.text(prompt)]);
+      final rawText = response.text?.trim() ?? '';
+      debugPrint('[AI Batch] Raw response: $rawText');
+      
+      var jsonString = rawText.replaceAll('```json', '').replaceAll('```', '').trim();
+      final jsonMatch = RegExp(r'\{.*\}', dotAll: true).firstMatch(jsonString);
+      if (jsonMatch != null) {
+        jsonString = jsonMatch.group(0)!;
+      }
+      
+      final Map<String, dynamic> decoded = jsonDecode(jsonString);
+      return decoded.map((key, value) => MapEntry(key, value.toString()));
+    } catch (e) {
+      debugPrint('[AI Batch] ERROR: $e');
+      return null;
+    }
   }
 }
 
@@ -176,4 +327,14 @@ class RateLimitException implements Exception {
   @override
   String toString() =>
       'Đã hết lượt dùng thử miễn phí. Vui lòng nhập API Key của bạn trong Cài đặt.';
+}
+
+/// Custom exception for Google AI short-term Rate Limits.
+class ApiBusyException implements Exception {
+  final int seconds;
+  ApiBusyException(this.seconds);
+
+  @override
+  String toString() =>
+      'API đang bận. Vui lòng thử lại trong $seconds giây.';
 }

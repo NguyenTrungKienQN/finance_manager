@@ -1,9 +1,13 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/habit_breaker_model.dart';
+import '../services/app_time_service.dart';
+import '../services/notification_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/habit_broken_dialog.dart';
 import '../widgets/liquid_glass.dart';
+import '../utils/app_toast.dart';
 
 class HabitBreakerScreen extends StatefulWidget {
   const HabitBreakerScreen({super.key});
@@ -16,20 +20,53 @@ class _HabitBreakerScreenState extends State<HabitBreakerScreen> {
   @override
   void initState() {
     super.initState();
-    // Advance all streaks on screen open
+    AppTimeService.instance.overrideNotifier.addListener(_handleTimeOverride);
     _advanceAllStreaks();
+  }
+
+  @override
+  void dispose() {
+    AppTimeService.instance.overrideNotifier
+        .removeListener(_handleTimeOverride);
+    super.dispose();
+  }
+
+  void _handleTimeOverride() {
+    if (!mounted) return;
+    _advanceAllStreaks();
+    setState(() {});
   }
 
   void _advanceAllStreaks() {
     final box = Hive.box<HabitBreaker>('habitBreakers');
-    for (var habit in box.values) {
-      if (habit.isActive) {
-        habit.advanceStreak();
+    final recoveredHabits = <String>[];
+
+    for (final habit in box.values) {
+      if (!habit.isActive) continue;
+
+      habit.ensureBackwardCompatibility();
+      final wasFrozen = habit.isFrozen;
+      final previousStreak = habit.currentStreak;
+      habit.advanceStreak();
+
+      if (wasFrozen && !habit.isFrozen) {
+        NotificationService().fireStreakRecovered(habit);
+        recoveredHabits.add(
+          'Hồi phục thành công: "${habit.habitName}" giữ được chuỗi $previousStreak ngày.',
+        );
       }
     }
+
+    if (!mounted || recoveredHabits.isEmpty) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      for (final message in recoveredHabits) {
+        AppToast.show(context, message);
+      }
+    });
   }
 
-  // Badge metadata
   static const Map<String, Map<String, String>> badgeInfo = {
     'starter': {'label': 'Khởi đầu', 'emoji': '🌱', 'days': '3'},
     'warrior': {'label': 'Chiến binh', 'emoji': '⚔️', 'days': '7'},
@@ -37,7 +74,6 @@ class _HabitBreakerScreenState extends State<HabitBreakerScreen> {
     'legend': {'label': 'Huyền thoại', 'emoji': '🏆', 'days': '30'},
   };
 
-  // Icon picker options
   static const Map<String, IconData> iconOptions = {
     'local_cafe': Icons.local_cafe,
     'local_bar': Icons.local_bar,
@@ -51,9 +87,7 @@ class _HabitBreakerScreenState extends State<HabitBreakerScreen> {
     'wine_bar': Icons.wine_bar,
   };
 
-  IconData _getIcon(String name) {
-    return iconOptions[name] ?? Icons.local_cafe;
-  }
+  IconData _getIcon(String name) => iconOptions[name] ?? Icons.local_cafe;
 
   void _showAddHabitSheet() {
     final nameController = TextEditingController();
@@ -85,7 +119,6 @@ class _HabitBreakerScreenState extends State<HabitBreakerScreen> {
                         mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Handle
                           Center(
                             child: Container(
                               width: 40,
@@ -102,8 +135,6 @@ class _HabitBreakerScreenState extends State<HabitBreakerScreen> {
                             style: theme.textTheme.titleLarge,
                           ),
                           const SizedBox(height: 20),
-
-                          // Habit name
                           TextField(
                             controller: nameController,
                             decoration: InputDecoration(
@@ -122,8 +153,6 @@ class _HabitBreakerScreenState extends State<HabitBreakerScreen> {
                             ),
                           ),
                           const SizedBox(height: 16),
-
-                          // Icon picker
                           Text(
                             'Chọn biểu tượng',
                             style: theme.textTheme.bodyMedium?.copyWith(
@@ -145,8 +174,9 @@ class _HabitBreakerScreenState extends State<HabitBreakerScreen> {
                                   padding: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
                                     color: isSelected
-                                        ? theme.primaryColor
-                                            .withValues(alpha: 0.15)
+                                        ? theme.primaryColor.withValues(
+                                            alpha: 0.15,
+                                          )
                                         : theme.canvasColor,
                                     borderRadius: BorderRadius.circular(12),
                                     border: isSelected
@@ -167,8 +197,6 @@ class _HabitBreakerScreenState extends State<HabitBreakerScreen> {
                             }).toList(),
                           ),
                           const SizedBox(height: 24),
-
-                          // Save button
                           SizedBox(
                             width: double.infinity,
                             height: 52,
@@ -214,43 +242,13 @@ class _HabitBreakerScreenState extends State<HabitBreakerScreen> {
                   right: 28,
                   child: Image.asset(
                     'assets/mascots/mascotask.png',
-                    height: 130, // Big enough to overlap nicely
+                    height: 130,
                     fit: BoxFit.contain,
                   ),
                 ),
               ],
             );
           },
-        );
-      },
-    );
-  }
-
-  void _showGameOver(HabitBreaker habit) {
-    final streakLost = habit.currentStreak;
-    showGeneralDialog(
-      context: context,
-      barrierDismissible: false,
-      barrierColor: Colors.black87,
-      transitionDuration: const Duration(milliseconds: 400),
-      pageBuilder: (ctx, anim1, anim2) {
-        return _GameOverOverlay(
-          streakLost: streakLost,
-          habitName: habit.habitName,
-          onRetry: () {
-            habit.resetStreak();
-            Navigator.pop(ctx);
-          },
-        );
-      },
-      transitionBuilder: (ctx, anim1, anim2, child) {
-        final curved = CurvedAnimation(
-          parent: anim1,
-          curve: Curves.easeOutBack,
-        );
-        return ScaleTransition(
-          scale: curved,
-          child: FadeTransition(opacity: anim1, child: child),
         );
       },
     );
@@ -298,6 +296,40 @@ class _HabitBreakerScreenState extends State<HabitBreakerScreen> {
     );
   }
 
+  Future<void> _handleRelapseOutcome(
+    HabitBreaker habit,
+    RelapseResult result, {
+    required int lostStreak,
+  }) async {
+    if (result == RelapseResult.fullReset) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('last_broken_habit_id', habit.id);
+      await prefs.setString(
+        'last_broken_time',
+        AppTimeService.instance.now().toIso8601String(),
+      );
+
+      if (!mounted) return;
+      await showFullResetDialog(
+        context,
+        habitName: habit.habitName,
+        lostStreak: lostStreak,
+      );
+      return;
+    }
+
+    if (!mounted) return;
+
+    if (result == RelapseResult.shieldAbsorbed) {
+      await showShieldAbsorbedDialog(context, habitName: habit.habitName);
+      return;
+    }
+
+    await NotificationService().fireStreakFrozen(habit);
+    if (!mounted) return;
+    await showStreakFrozenDialog(context, habitName: habit.habitName);
+  }
+
   void _confirmRelapse(HabitBreaker habit) {
     showDialog(
       context: context,
@@ -325,9 +357,15 @@ class _HabitBreakerScreenState extends State<HabitBreakerScreen> {
               ),
             ),
             TextButton(
-              onPressed: () {
+              onPressed: () async {
+                final previousStreak = habit.currentStreak;
                 Navigator.pop(ctx);
-                _showGameOver(habit);
+                final result = habit.handleRelapse();
+                await _handleRelapseOutcome(
+                  habit,
+                  result,
+                  lostStreak: previousStreak,
+                );
               },
               child: Text(
                 'Vâng, tôi đã mua...',
@@ -396,7 +434,6 @@ class _HabitBreakerScreenState extends State<HabitBreakerScreen> {
 
             return CustomScrollView(
               slivers: [
-                // Header
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
@@ -418,14 +455,12 @@ class _HabitBreakerScreenState extends State<HabitBreakerScreen> {
                     ),
                   ),
                 ),
-
                 if (habits.isEmpty)
                   SliverFillRemaining(
                     hasScrollBody: false,
                     child: _buildEmptyState(theme),
                   )
                 else ...[
-                  // Habit cards
                   SliverPadding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     sliver: SliverList(
@@ -437,7 +472,6 @@ class _HabitBreakerScreenState extends State<HabitBreakerScreen> {
                       }, childCount: habits.length),
                     ),
                   ),
-                  // Bottom padding for dock
                   const SliverToBoxAdapter(child: SizedBox(height: 120)),
                 ],
               ],
@@ -496,57 +530,32 @@ class _HabitBreakerScreenState extends State<HabitBreakerScreen> {
   }
 
   Widget _buildHabitCard(HabitBreaker habit, ThemeData theme) {
-    final streakDays = habit.currentStreak;
-    final bestStreak = habit.bestStreak;
-
-    // Determine streak color intensity
-    Color streakColor;
-    if (streakDays >= 30) {
-      streakColor = const Color(0xFFFFD700); // Gold
-    } else if (streakDays >= 14) {
-      streakColor = const Color(0xFFFF6B35); // Deep orange
-    } else if (streakDays >= 7) {
-      streakColor = const Color(0xFFFF9800); // Orange
-    } else if (streakDays >= 3) {
-      streakColor = const Color(0xFFFFC107); // Amber
-    } else {
-      streakColor = theme.primaryColor;
-    }
+    final streakColor = _streakColorFor(habit, theme);
+    final statusColor = _statusColorFor(habit, theme);
 
     return Container(
       decoration: BoxDecoration(
         color: theme.cardColor,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: streakColor.withValues(alpha: 0.14),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Top section: Icon, name, streak
+          if (habit.isFrozen) _buildFreezeBanner(habit),
           Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Icon
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: streakColor.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Icon(
-                    _getIcon(habit.iconName),
-                    color: streakColor,
-                    size: 28,
-                  ),
-                ),
+                _buildStreakArt(habit, streakColor, theme),
                 const SizedBox(width: 16),
-                // Name + best streak
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -560,25 +569,44 @@ class _HabitBreakerScreenState extends State<HabitBreakerScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Kỷ lục: $bestStreak ngày',
+                        'Kỷ lục: ${habit.bestStreak} ngày',
                         style: theme.textTheme.bodyMedium?.copyWith(
                           fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 9,
+                        ),
+                        decoration: BoxDecoration(
+                          color: statusColor.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Text(
+                          habit.getStatusText(),
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: statusColor,
+                            fontWeight: FontWeight.w700,
+                            height: 1.25,
+                          ),
                         ),
                       ),
                     ],
                   ),
                 ),
-                // Streak counter
+                const SizedBox(width: 12),
                 Column(
                   children: [
                     Text(
-                      '🔥',
-                      style: TextStyle(fontSize: streakDays > 0 ? 28 : 20),
+                      _streakEmojiFor(habit),
+                      style: const TextStyle(fontSize: 24),
                     ),
                     Text(
-                      '$streakDays',
+                      '${habit.currentStreak}',
                       style: TextStyle(
-                        fontSize: 28,
+                        fontSize: 30,
                         fontWeight: FontWeight.w900,
                         color: streakColor,
                       ),
@@ -592,14 +620,10 @@ class _HabitBreakerScreenState extends State<HabitBreakerScreen> {
               ],
             ),
           ),
-
-          // Streak visual (last 7 days)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: _buildStreakCalendar(habit, theme, streakColor),
           ),
-
-          // Badges
           if (habit.badges.isNotEmpty)
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
@@ -629,15 +653,11 @@ class _HabitBreakerScreenState extends State<HabitBreakerScreen> {
                 ],
               ),
             ),
-
           const SizedBox(height: 8),
-
-          // Action buttons
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
             child: Row(
               children: [
-                // Delete
                 IconButton(
                   onPressed: () => _deleteHabit(habit),
                   icon: Icon(
@@ -647,7 +667,6 @@ class _HabitBreakerScreenState extends State<HabitBreakerScreen> {
                   ),
                 ),
                 const Spacer(),
-                // "I broke it" button
                 TextButton.icon(
                   onPressed: () => _confirmRelapse(habit),
                   icon: Icon(
@@ -671,27 +690,116 @@ class _HabitBreakerScreenState extends State<HabitBreakerScreen> {
     );
   }
 
+  Widget _buildFreezeBanner(HabitBreaker habit) {
+    final remaining = habit.freezeDaysRemaining;
+    final text = remaining > 0
+        ? '🧊 Chuỗi đóng băng · Còn $remaining ngày để hồi phục'
+        : '🧊 Hồi phục thành công!';
+    final colors = habit.showsPurpleFrozenState
+        ? [const Color(0xFFEDE7F6), const Color(0xFFD1C4E9)]
+        : [const Color(0xFFE3F2FD), const Color(0xFFBBDEFB)];
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: colors),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontWeight: FontWeight.w800,
+          color: Color(0xFF0D47A1),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStreakArt(
+    HabitBreaker habit,
+    Color streakColor,
+    ThemeData theme,
+  ) {
+    final assetPath = _streakAssetFor(habit);
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        width: 74,
+        height: 74,
+        color: streakColor.withValues(alpha: 0.12),
+        alignment: Alignment.center,
+        child: Image.asset(
+          assetPath,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) =>
+              _buildStreakArtFallback(habit, streakColor, theme),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStreakArtFallback(
+    HabitBreaker habit,
+    Color streakColor,
+    ThemeData theme,
+  ) {
+    return Container(
+      width: 62,
+      height: 62,
+      decoration: BoxDecoration(
+        color: streakColor.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Icon(_getIcon(habit.iconName), color: streakColor, size: 28),
+          if (habit.hasActiveShield)
+            Positioned(
+              right: 6,
+              bottom: 6,
+              child: Icon(
+                Icons.shield_outlined,
+                color: theme.colorScheme.secondary,
+                size: 18,
+              ),
+            )
+          else if (habit.isFrozen)
+            const Positioned(
+              right: 6,
+              bottom: 6,
+              child: Icon(Icons.ac_unit, color: Color(0xFF1E88E5), size: 18),
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildStreakCalendar(
     HabitBreaker habit,
     ThemeData theme,
     Color streakColor,
   ) {
-    final now = DateTime.now();
+    final now = AppTimeService.instance.now();
     final today = DateTime(now.year, now.month, now.day);
-    final streakStart = DateTime(
-      habit.startDate.year,
-      habit.startDate.month,
-      habit.startDate.day,
-    );
+    final fallbackCleanDays = _fallbackCleanDays(habit, today);
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: List.generate(7, (i) {
         final day = today.subtract(Duration(days: 6 - i));
-        final isStreakDay = !day.isBefore(streakStart) && !day.isAfter(today);
+        final state = habit.dayStateFor(day);
+        final derivedState = state ?? fallbackCleanDays[day];
         final isToday = day == today;
         final dayNames = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
         final dayName = dayNames[day.weekday - 1];
+        final style = _calendarStyleFor(
+          derivedState,
+          streakColor,
+          theme,
+          isToday: isToday,
+        );
 
         return Column(
           children: [
@@ -704,25 +812,27 @@ class _HabitBreakerScreenState extends State<HabitBreakerScreen> {
             ),
             const SizedBox(height: 4),
             AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              width: 32,
-              height: 32,
+              duration: const Duration(milliseconds: 250),
+              width: 36,
+              height: 36,
               decoration: BoxDecoration(
-                color: isStreakDay
-                    ? streakColor.withValues(alpha: 0.2)
-                    : theme.canvasColor,
+                color: style.background,
                 shape: BoxShape.circle,
-                border:
-                    isToday ? Border.all(color: streakColor, width: 2) : null,
+                border: isToday
+                    ? Border.all(color: style.border ?? streakColor, width: 2)
+                    : style.border != null
+                        ? Border.all(color: style.border!, width: 1.4)
+                        : null,
               ),
               child: Center(
-                child: isStreakDay
-                    ? Icon(Icons.check, color: streakColor, size: 18)
+                child: style.icon != null
+                    ? Icon(style.icon, color: style.foreground, size: 18)
                     : Text(
                         '${day.day}',
                         style: TextStyle(
                           fontSize: 11,
-                          color: theme.textTheme.bodyMedium?.color,
+                          fontWeight: FontWeight.w700,
+                          color: style.foreground,
                         ),
                       ),
               ),
@@ -732,169 +842,145 @@ class _HabitBreakerScreenState extends State<HabitBreakerScreen> {
       }),
     );
   }
+
+  Map<DateTime, String> _fallbackCleanDays(HabitBreaker habit, DateTime today) {
+    if (habit.dayStates.isNotEmpty ||
+        habit.currentStreak <= 0 ||
+        habit.isFrozen) {
+      return const {};
+    }
+
+    final fallback = <DateTime, String>{};
+    final days = habit.currentStreak > 7 ? 7 : habit.currentStreak;
+    for (var offset = 0; offset < days; offset++) {
+      final day = today.subtract(Duration(days: offset));
+      fallback[DateTime(day.year, day.month, day.day)] = 'clean';
+    }
+    return fallback;
+  }
+
+  _CalendarStyle _calendarStyleFor(
+    String? state,
+    Color streakColor,
+    ThemeData theme, {
+    required bool isToday,
+  }) {
+    switch (state) {
+      case 'upgrade':
+        return _CalendarStyle(
+          background: const Color(0xFFEDE7F6),
+          foreground: const Color(0xFF6A1B9A),
+          icon: Icons.auto_awesome_rounded,
+          border: const Color(0xFFAB47BC),
+        );
+      case 'shield_used':
+        return _CalendarStyle(
+          background: const Color(0xFFFFF3E0),
+          foreground: const Color(0xFFEF6C00),
+          icon: Icons.shield_outlined,
+          border: const Color(0xFFFFB74D),
+        );
+      case 'frozen':
+        return _CalendarStyle(
+          background: const Color(0xFFE3F2FD),
+          foreground: const Color(0xFF1E88E5),
+          icon: Icons.ac_unit,
+          border: const Color(0xFF90CAF9),
+        );
+      case 'reset':
+        return _CalendarStyle(
+          background: const Color(0xFFFFEBEE),
+          foreground: const Color(0xFFE53935),
+          icon: Icons.close_rounded,
+          border: const Color(0xFFEF9A9A),
+        );
+      case 'clean':
+        return _CalendarStyle(
+          background: streakColor.withValues(alpha: 0.2),
+          foreground: streakColor,
+          icon: Icons.check,
+        );
+      default:
+        return _CalendarStyle(
+          background: theme.canvasColor,
+          foreground: theme.textTheme.bodyMedium?.color ?? Colors.grey,
+          border: isToday ? streakColor : null,
+        );
+    }
+  }
+
+  Color _streakColorFor(HabitBreaker habit, ThemeData theme) {
+    if (habit.isFrozen) {
+      return habit.showsPurpleFrozenState
+          ? const Color(0xFF7E57C2)
+          : const Color(0xFF42A5F5);
+    }
+    if (habit.hasActiveShield) {
+      return const Color(0xFF6A1B9A);
+    }
+    if (habit.isPurpleWithoutShield) {
+      return const Color(0xFF8E24AA);
+    }
+    if (habit.currentStreak >= 30) {
+      return const Color(0xFFFFD700);
+    }
+    if (habit.currentStreak >= 14) {
+      return const Color(0xFFFF6B35);
+    }
+    if (habit.currentStreak >= 7) {
+      return const Color(0xFFFF9800);
+    }
+    if (habit.currentStreak >= 3) {
+      return const Color(0xFFFFC107);
+    }
+    return theme.primaryColor;
+  }
+
+  Color _statusColorFor(HabitBreaker habit, ThemeData theme) {
+    if (habit.isFrozen) {
+      return habit.showsPurpleFrozenState
+          ? const Color(0xFF5E35B1)
+          : const Color(0xFF1E88E5);
+    }
+    if (habit.isPurpleTier) {
+      return const Color(0xFF7B1FA2);
+    }
+    return theme.textTheme.bodyMedium?.color ?? theme.primaryColor;
+  }
+
+  String _streakAssetFor(HabitBreaker habit) {
+    if (habit.isFrozen) {
+      return habit.showsPurpleFrozenState
+          ? 'assets/streak/streak_frozen_purple.png'
+          : 'assets/streak/streak_frozen_regular.png';
+    }
+    if (habit.hasActiveShield) {
+      return 'assets/streak/streak_purple_shield.png';
+    }
+    if (habit.isPurpleTier) {
+      return 'assets/streak/streak_purple.png';
+    }
+    return 'assets/streak/streak_regular.png';
+  }
+
+  String _streakEmojiFor(HabitBreaker habit) {
+    if (habit.isFrozen) return '🧊';
+    if (habit.hasActiveShield) return '🛡️';
+    if (habit.isPurpleTier) return '💜';
+    return '🔥';
+  }
 }
 
-// ──────────────────────────────────────────────────
-// Game Over Overlay
-// ──────────────────────────────────────────────────
-class _GameOverOverlay extends StatefulWidget {
-  final int streakLost;
-  final String habitName;
-  final VoidCallback onRetry;
-
-  const _GameOverOverlay({
-    required this.streakLost,
-    required this.habitName,
-    required this.onRetry,
+class _CalendarStyle {
+  const _CalendarStyle({
+    required this.background,
+    required this.foreground,
+    this.icon,
+    this.border,
   });
 
-  @override
-  State<_GameOverOverlay> createState() => _GameOverOverlayState();
-}
-
-class _GameOverOverlayState extends State<_GameOverOverlay>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _shakeController;
-
-  @override
-  void initState() {
-    super.initState();
-    _shakeController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 600),
-    );
-    // Start shake animation
-    Future.delayed(const Duration(milliseconds: 200), () {
-      if (mounted) _shakeController.forward();
-    });
-  }
-
-  @override
-  void dispose() {
-    _shakeController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      type: MaterialType.transparency,
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Shake animation for GAME OVER text
-              AnimatedBuilder(
-                animation: _shakeController,
-                builder: (context, child) {
-                  final shake = sin(_shakeController.value * pi * 4) *
-                      8 *
-                      (1 - _shakeController.value);
-                  return Transform.translate(
-                    offset: Offset(shake, 0),
-                    child: child,
-                  );
-                },
-                child: const Text(
-                  'GAME OVER',
-                  style: TextStyle(
-                    fontSize: 48,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.white,
-                    letterSpacing: 4,
-                    shadows: [Shadow(color: Colors.redAccent, blurRadius: 20)],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Sad Mascot
-              Image.asset('assets/mascots/mascotsad.png', height: 120),
-              const SizedBox(height: 24),
-
-              // Stats
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Column(
-                  children: [
-                    Text(
-                      'Bạn đã mua ${widget.habitName}',
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 16,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 12),
-                    RichText(
-                      textAlign: TextAlign.center,
-                      text: TextSpan(
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                        ),
-                        children: [
-                          const TextSpan(text: 'Chuỗi '),
-                          TextSpan(
-                            text: '${widget.streakLost} ngày',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 22,
-                              color: Colors.redAccent,
-                            ),
-                          ),
-                          const TextSpan(text: ' đã bị mất 😢'),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 32),
-
-              // Motivational message
-              const Text(
-                'Không sao, thất bại là mẹ thành công!\nBắt đầu lại nào! 💪',
-                style: TextStyle(
-                  color: Colors.white60,
-                  fontSize: 15,
-                  height: 1.5,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 32),
-
-              // Retry button
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: widget.onRetry,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFF6B6B),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    elevation: 8,
-                    shadowColor: Colors.redAccent.withValues(alpha: 0.5),
-                  ),
-                  child: const Text(
-                    'Thử lại 🔥',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  final Color background;
+  final Color foreground;
+  final IconData? icon;
+  final Color? border;
 }

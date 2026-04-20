@@ -5,6 +5,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:confetti/confetti.dart';
 import '../models/savings_goal_model.dart';
+import '../services/notification_service.dart';
 import '../theme/app_theme.dart';
 import 'add_savings_goal_screen.dart';
 import '../widgets/liquid_glass.dart';
@@ -144,6 +145,8 @@ class _SavingsGoalsScreenState extends State<SavingsGoalsScreen> {
     goal.save();
 
     if (!wasCompleted && goal.isCompleted) {
+      NotificationService().fireSavingsGoalMilestone(goal);
+      NotificationService().scheduleAllSmartNotifications();
       // Goal just completed — celebrate!
       HapticFeedback.heavyImpact();
       _confettiController.play();
@@ -198,7 +201,8 @@ class _SavingsGoalsScreenState extends State<SavingsGoalsScreen> {
                   ElevatedButton(
                     onPressed: () => Navigator.pop(ctx),
                     style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 40, vertical: 16),
                       backgroundColor: Colors.white,
                       foregroundColor: Theme.of(context).primaryColor,
                       shape: RoundedRectangleBorder(
@@ -207,7 +211,8 @@ class _SavingsGoalsScreenState extends State<SavingsGoalsScreen> {
                     ),
                     child: const Text(
                       'Tuyệt vời! 🎊',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ],

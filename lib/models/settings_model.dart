@@ -1,29 +1,70 @@
 import 'package:hive/hive.dart';
+import '../services/app_time_service.dart';
+import 'transaction_model.dart';
 
 part 'settings_model.g.dart';
 
 @HiveType(typeId: 1)
 class AppSettings extends HiveObject {
-  @HiveField(0)
+  @HiveField(0, defaultValue: 500000.0)
   double dailyLimit;
 
-  @HiveField(1)
+  @HiveField(1, defaultValue: true)
   bool isFirstInstall;
 
-  @HiveField(2)
+  @HiveField(2, defaultValue: "Bạn")
   String userName; // e.g., "Mẹ", "Bố", or custom name
 
-  @HiveField(3)
+  @HiveField(3, defaultValue: 15000000.0)
   double monthlySalary;
 
-  @HiveField(4)
+  @HiveField(4, defaultValue: "system")
   String themeMode; // "system", "light", "dark"
 
-  @HiveField(5)
+  @HiveField(5, defaultValue: 5)
   int freeAiUses; // 5 free uses with default key
 
   @HiveField(6)
   String? geminiApiKey; // User's own key for unlimited
+
+  @HiveField(7, defaultValue: false)
+  bool hasSeenOtterIntro; // Otter welcome card dismissed
+
+  @HiveField(8, defaultValue: true)
+  bool notifMorningBudget;
+
+  @HiveField(9, defaultValue: true)
+  bool notifOverspendAlert;
+
+  @HiveField(10, defaultValue: true)
+  bool notifHabitStreak;
+
+  @HiveField(11, defaultValue: false)
+  bool notifEveningSummary;
+
+  @HiveField(12, defaultValue: false)
+  bool notifWeeklyInsight;
+
+  @HiveField(13, defaultValue: false)
+  bool notifDebtReminder;
+
+  @HiveField(14, defaultValue: false)
+  bool notifEndOfMonth;
+
+  @HiveField(15, defaultValue: false)
+  bool notifSavingsMilestone;
+
+  @HiveField(16, defaultValue: false)
+  bool enableAppLock;
+
+  @HiveField(17, defaultValue: 0.0)
+  double safeBalance;
+
+  @HiveField(18)
+  DateTime? trackingStartDate;
+
+  @HiveField(19, defaultValue: 0.0)
+  double initialMonthSpent;
 
   AppSettings({
     this.dailyLimit = 500000,
@@ -33,12 +74,103 @@ class AppSettings extends HiveObject {
     this.themeMode = "system",
     this.freeAiUses = 5,
     this.geminiApiKey,
+    this.hasSeenOtterIntro = false,
+    this.notifMorningBudget = true,
+    this.notifOverspendAlert = true,
+    this.notifHabitStreak = true,
+    this.notifEveningSummary = false,
+    this.notifWeeklyInsight = false,
+    this.notifDebtReminder = false,
+    this.notifEndOfMonth = false,
+    this.notifSavingsMilestone = false,
+    this.enableAppLock = false,
+    this.safeBalance = 0.0,
+    this.trackingStartDate,
+    this.initialMonthSpent = 0.0,
   });
 
-  /// Auto-calculate daily limit from salary
+  bool isTrackingMonth(DateTime date) {
+    final start = trackingStartDate;
+    return start != null &&
+        start.year == date.year &&
+        start.month == date.month;
+  }
+
+  bool tracksDate(DateTime date) {
+    final start = trackingStartDate;
+    if (start == null) return true;
+    if (date.year != start.year || date.month != start.month) return true;
+    return date.day >= start.day;
+  }
+
+  int trackingStartDayFor(DateTime date) {
+    return isTrackingMonth(date) ? trackingStartDate!.day : 1;
+  }
+
+  double baseDailyLimitFor(DateTime date) {
+    final daysInMonth = DateTime(date.year, date.month + 1, 0).day;
+    if (daysInMonth <= 0) return 0;
+
+    if (!isTrackingMonth(date)) {
+      return monthlySalary / daysInMonth;
+    }
+
+    final remainingDays = daysInMonth - trackingStartDate!.day + 1;
+    if (remainingDays <= 0) return 0;
+
+    final remainingBudgetAtSetup = monthlySalary - initialMonthSpent;
+    final normalizedRemainingBudget = remainingBudgetAtSetup < 0
+        ? 0.0
+        : remainingBudgetAtSetup > monthlySalary
+            ? monthlySalary
+            : remainingBudgetAtSetup;
+
+    return normalizedRemainingBudget / remainingDays;
+  }
+
+  double calculateDailyLimitForDate(
+    DateTime date,
+    Iterable<Transaction> transactions,
+  ) {
+    if (!tracksDate(date)) {
+      return 0;
+    }
+
+    final daysInMonth = DateTime(date.year, date.month + 1, 0).day;
+    final baseDailyLimit = baseDailyLimitFor(date);
+    final startDay = trackingStartDayFor(date);
+
+    double monthSpentBeforeDate = 0;
+    for (final transaction in transactions) {
+      if (transaction.date.year != date.year ||
+          transaction.date.month != date.month) {
+        continue;
+      }
+      if (transaction.date.day < startDay || transaction.date.day >= date.day) {
+        continue;
+      }
+
+      final nonSafeAmount = transaction.amount - transaction.safeAmount;
+      monthSpentBeforeDate += nonSafeAmount;
+    }
+
+    final daysPassedBeforeDate = (date.day - startDay).clamp(0, daysInMonth);
+    final accruedBudget = daysPassedBeforeDate * baseDailyLimit;
+    final dynamicDailyLimit =
+        baseDailyLimit + accruedBudget - monthSpentBeforeDate;
+
+    return dynamicDailyLimit < 0 ? 0 : dynamicDailyLimit;
+  }
+
+  /// Auto-calculate today's daily limit dynamically with rollover.
   double get computedDailyLimit {
-    final now = DateTime.now();
-    final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
-    return monthlySalary / daysInMonth;
+    final now = AppTimeService.instance.now();
+
+    if (!Hive.isBoxOpen('transactions')) {
+      return baseDailyLimitFor(now).clamp(0, double.infinity).toDouble();
+    }
+
+    final txBox = Hive.box<Transaction>('transactions');
+    return calculateDailyLimitForDate(now, txBox.values);
   }
 }

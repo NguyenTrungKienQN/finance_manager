@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<clip xmlns:android="http://schemas.android.com/apk/res/android"
+    android:clipOrientation="horizontal"
+    android:gravity="left">
+    <shape>
+        <gradient
+            android:startColor="#FF6B6B"
+            android:endColor="#FF8E8E"
+            android:angle="0" />
+        <corners android:radius="4dp" />
+    </shape>
+</clip>

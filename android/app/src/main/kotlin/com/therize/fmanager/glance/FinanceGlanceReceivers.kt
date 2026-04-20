@@ -19,14 +19,7 @@ class DailyBalanceWidgetReceiver : HomeWidgetGlanceWidgetReceiver<DailyBalanceGl
     }
 }
 
-class WeeklySummaryWidgetReceiver : HomeWidgetGlanceWidgetReceiver<WeeklySummaryGlanceWidget>() {
-    override val glanceAppWidget = WeeklySummaryGlanceWidget()
 
-    override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
-        super.onUpdate(context, appWidgetManager, appWidgetIds)
-        WidgetClickHelper.setPendingIntent(context, appWidgetManager, appWidgetIds)
-    }
-}
 
 class ForecastWidgetReceiver : HomeWidgetGlanceWidgetReceiver<ForecastGlanceWidget>() {
     override val glanceAppWidget = ForecastGlanceWidget()
@@ -37,14 +30,7 @@ class ForecastWidgetReceiver : HomeWidgetGlanceWidgetReceiver<ForecastGlanceWidg
     }
 }
 
-class SavingsGoalWidgetReceiver : HomeWidgetGlanceWidgetReceiver<SavingsGoalGlanceWidget>() {
-    override val glanceAppWidget = SavingsGoalGlanceWidget()
 
-    override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
-        super.onUpdate(context, appWidgetManager, appWidgetIds)
-        WidgetClickHelper.setPendingIntent(context, appWidgetManager, appWidgetIds)
-    }
-}
 
 class QuickAddWidgetReceiver : HomeWidgetGlanceWidgetReceiver<QuickAddGlanceWidget>() {
     override val glanceAppWidget = QuickAddGlanceWidget()
@@ -64,14 +50,7 @@ class HabitBreakerWidgetReceiver : HomeWidgetGlanceWidgetReceiver<HabitBreakerGl
     }
 }
 
-class RecurringWidgetReceiver : HomeWidgetGlanceWidgetReceiver<RecurringGlanceWidget>() {
-    override val glanceAppWidget = RecurringGlanceWidget()
 
-    override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
-        super.onUpdate(context, appWidgetManager, appWidgetIds)
-        WidgetClickHelper.setPendingIntent(context, appWidgetManager, appWidgetIds)
-    }
-}
 
 /**
  * Helper to set a PendingIntent on the widget's root view.

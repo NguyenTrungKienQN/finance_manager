@@ -26,13 +26,22 @@ class HabitBreakerAdapter extends TypeAdapter<HabitBreaker> {
       lastCheckDate: fields[6] as DateTime?,
       isActive: fields[7] as bool,
       badges: (fields[8] as List?)?.cast<String>(),
+      streakTier: fields[9] == null ? 'regular' : fields[9] as String,
+      hasShield: fields[10] == null ? false : fields[10] as bool,
+      isFrozen: fields[11] == null ? false : fields[11] as bool,
+      frozenDate: fields[12] as DateTime?,
+      wasPurpleBeforeFreeze: fields[13] == null ? false : fields[13] as bool,
+      cleanDaysSinceRecovery: fields[14] == null ? 0 : fields[14] as int,
+      dayStates: fields[15] == null
+          ? {}
+          : (fields[15] as Map?)?.cast<String, String>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, HabitBreaker obj) {
     writer
-      ..writeByte(9)
+      ..writeByte(16)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -50,7 +59,21 @@ class HabitBreakerAdapter extends TypeAdapter<HabitBreaker> {
       ..writeByte(7)
       ..write(obj.isActive)
       ..writeByte(8)
-      ..write(obj.badges);
+      ..write(obj.badges)
+      ..writeByte(9)
+      ..write(obj.streakTier)
+      ..writeByte(10)
+      ..write(obj.hasShield)
+      ..writeByte(11)
+      ..write(obj.isFrozen)
+      ..writeByte(12)
+      ..write(obj.frozenDate)
+      ..writeByte(13)
+      ..write(obj.wasPurpleBeforeFreeze)
+      ..writeByte(14)
+      ..write(obj.cleanDaysSinceRecovery)
+      ..writeByte(15)
+      ..write(obj.dayStates);
   }
 
   @override

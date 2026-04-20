@@ -1,12 +1,10 @@
 // ignore_for_file: deprecated_member_use
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:archive/archive_io.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
+import 'package:flutter/foundation.dart';
 
 import '../models/debt_record_model.dart';
 import '../models/habit_breaker_model.dart';
@@ -14,6 +12,7 @@ import '../models/recurring_transaction_model.dart';
 import '../models/savings_goal_model.dart';
 import '../models/settings_model.dart';
 import '../models/transaction_model.dart';
+import '../utils/app_toast.dart';
 
 class BackupService {
   /// Khóa và lưu tất cả Hive boxes, nén thành file zip và chia sẻ.
@@ -36,7 +35,7 @@ class BackupService {
 
       // 2. Get the ACTUAL Hive directory from an open box
       final boxPath = Hive.box<Transaction>('transactions').path;
-      print("BACKUP DEBUG: boxPath = $boxPath");
+      debugPrint("BACKUP DEBUG: boxPath = $boxPath");
       if (boxPath == null) throw Exception('Không tìm thấy đường dẫn Hive storage');
       final appDir = Directory(File(boxPath).parent.path);
 
@@ -45,12 +44,12 @@ class BackupService {
       int fileCount = 0;
       final archive = Archive();
       
-      print("BACKUP DEBUG: searching in ${dir.path}");
+      debugPrint("BACKUP DEBUG: searching in ${dir.path}");
       dir.listSync(recursive: true).forEach((entity) {
         if (entity is File && entity.path.endsWith('.hive')) {
           final fileName = entity.uri.pathSegments.last;
           final bytes = entity.readAsBytesSync();
-          print("BACKUP DEBUG: Adding $fileName (${bytes.length} bytes)");
+          debugPrint("BACKUP DEBUG: Adding $fileName (${bytes.length} bytes)");
           archive.addFile(ArchiveFile(fileName, bytes.length, bytes));
           fileCount++;
         }
@@ -58,14 +57,12 @@ class BackupService {
 
       if (fileCount == 0) {
         if (context.mounted) {
-           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Không tìm thấy dữ liệu để sao lưu.')),
-          );
+           AppToast.show(context, 'Không tìm thấy dữ liệu để sao lưu.');
         }
         return;
       }
 
-      print("BACKUP DEBUG: Encoding zip with $fileCount files...");
+      debugPrint("BACKUP DEBUG: Encoding zip with $fileCount files...");
       final zipData = ZipEncoder().encode(archive);
       if (zipData == null) throw Exception('Lỗi mã hóa file zip');
 
@@ -82,16 +79,12 @@ class BackupService {
         // FilePicker automatically writes the bytes to the picked location on Android/Web
         // We just need to notify the user of success.
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-             SnackBar(content: Text('Đã lưu sao lưu thành công tại: $outputFile')),
-          );
+          AppToast.show(context, 'Đã lưu sao lưu thành công tại: $outputFile');
         }
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi sao lưu: $e')),
-        );
+        AppToast.show(context, 'Lỗi sao lưu: $e');
       }
     }
   }
@@ -110,10 +103,7 @@ class BackupService {
         // Basic validation
         if (!filePath.toLowerCase().endsWith('.zip')) {
           if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                  content: Text('Vui lòng chọn file backup .zip hợp lệ!')),
-            );
+            AppToast.show(context, 'Vui lòng chọn file backup .zip hợp lệ!');
           }
           return;
         }
@@ -144,9 +134,7 @@ class BackupService {
 
         if (filesRestored == 0) {
            if (context.mounted) {
-             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('File backup trống hoặc không hợp lệ.')),
-             );
+             AppToast.show(context, 'File backup trống hoặc không hợp lệ.');
            }
            // Must reopen the boxes if we aborted after closing them!
            await Future.wait([
@@ -204,9 +192,7 @@ class BackupService {
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi khôi phục: $e')),
-        );
+        AppToast.show(context, 'Lỗi khôi phục: $e');
       }
       // Attempt to reopen boxes if failed midway to prevent app crash
       await Future.wait([

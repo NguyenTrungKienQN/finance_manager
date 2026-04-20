@@ -28,6 +28,9 @@ class Transaction extends HiveObject {
   @HiveField(7)
   final int? quantity; // Số lượng (default: 1)
 
+  @HiveField(8, defaultValue: 0.0)
+  final double safeAmount; // Số tiền lấy từ Két sắt (mặc định 0)
+
   Transaction({
     required this.id,
     required this.amount,
@@ -37,5 +40,6 @@ class Transaction extends HiveObject {
     this.notes,
     this.unitPrice,
     this.quantity,
+    this.safeAmount = 0.0,
   });
 }

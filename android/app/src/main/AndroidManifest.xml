@@ -12,6 +12,9 @@
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     
+    <!-- Audio permission for Speech to text -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    
     <application
         android:label="Finance Manager"
         android:name="${applicationName}"
@@ -48,10 +51,10 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
-        <!-- Home Widget Group ID -->
+        <!-- Home Widget Group ID - Must match Flutter setAppGroupId -->
         <meta-data
-            android:name="com.google.android.gms.home_widget.GROUP_ID"
-            android:value="com.therize.fmanager" />
+            android:name="es.antonborri.home_widget.group_id"
+            android:value="group.com.therize.fmanager" />
         <!-- Daily Balance Widget -->
         <receiver
             android:name=".glance.DailyBalanceWidgetReceiver"
@@ -64,18 +67,7 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/finance_widget_info" />
         </receiver>
-        <!-- Weekly Summary Widget -->
-        <receiver
-            android:name=".glance.WeeklySummaryWidgetReceiver"
-            android:exported="true"
-            android:label="Tuần này">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/weekly_widget_info" />
-        </receiver>
+
         <!-- Forecast Widget -->
         <receiver
             android:name=".glance.ForecastWidgetReceiver"
@@ -88,18 +80,7 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/forecast_widget_info" />
         </receiver>
-        <!-- Savings Goal Widget -->
-        <receiver
-            android:name=".glance.SavingsGoalWidgetReceiver"
-            android:exported="true"
-            android:label="Mục tiêu">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/savings_widget_info" />
-        </receiver>
+
         <!-- Quick Add Widget -->
         <receiver
             android:name=".glance.QuickAddWidgetReceiver"
@@ -126,18 +107,7 @@
                 android:resource="@xml/habit_widget_info" />
         </receiver>
 
-        <!-- Recurring Widget -->
-        <receiver
-            android:name=".glance.RecurringWidgetReceiver"
-            android:exported="true"
-            android:label="Định kỳ">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/recurring_widget_info" />
-        </receiver>
+
 
         <!-- Notification Receivers -->
         <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />

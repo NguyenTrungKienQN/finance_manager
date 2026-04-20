@@ -40,41 +40,66 @@ fun QuickAddContent(context: Context) {
     Box(
         modifier = GlanceModifier.fillMaxSize()
             .appWidgetBackground()
-            .cornerRadius(28.dp) // Large premium rounding
-            .background(ImageProvider(R.drawable.widget_bg_gradient)) // Rich dark blue/black depth
+            .cornerRadius(28.dp)
+            .background(ImageProvider(R.drawable.widget_bg_quick_add))
             .clickable(actionStartActivity<MainActivity>(context, Uri.parse("fmanager://add_transaction"))),
         contentAlignment = Alignment.Center
     ) {
+        // Main Action Content (Shifted high to clear the mascot)
         Column(
-            modifier = GlanceModifier.fillMaxSize(),
+            modifier = GlanceModifier.fillMaxSize().padding(top = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalAlignment = Alignment.Vertical.CenterVertically
+            verticalAlignment = Alignment.Vertical.Top // Start from top
         ) {
+            Spacer(modifier = GlanceModifier.height(10.dp))
+            
+            // Circular Gradient Button with "+"
             Box(
                 modifier = GlanceModifier
                     .size(60.dp)
-                    .background(ImageProvider(R.drawable.quick_add_glow_gradient)) // High-tech cyan-blue glowing gradient
-                    .cornerRadius(30.dp),
+                    .background(ImageProvider(R.drawable.quick_add_button_bg)),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = "+",
                     style = TextStyle(
                         color = ColorProvider(Color.White), 
-                        fontSize = 32.sp, 
+                        fontSize = 30.sp, 
                         fontWeight = FontWeight.Bold
                     )
                 )
             }
-            Spacer(modifier = GlanceModifier.height(10.dp))
+            
+            Spacer(modifier = GlanceModifier.height(12.dp))
+            
+            // Label - ensured enough width to avoid "Thêm nh..."
             Text(
-                text = "Thêm Nhanh",
+                text = "Thêm nhanh",
                 style = TextStyle(
-                    color = ColorProvider(Color(0xFFE0E0E0)), 
-                    fontSize = 11.sp, 
+                    color = ColorProvider(Color(0xFF4A4F5A)), 
+                    fontSize = 16.sp, 
                     fontWeight = FontWeight.Medium
-                )
+                ),
+                modifier = GlanceModifier.padding(horizontal = 4.dp)
             )
+        }
+        
+        // Mascot Anchored to Bottom Right - Peeking style
+        // We use a container Box with fixed height to force clipping of the larger Image
+        Box(
+            modifier = GlanceModifier.fillMaxSize(),
+            contentAlignment = Alignment.BottomEnd
+        ) {
+            Box(
+                modifier = GlanceModifier.size(width = 96.dp, height = 50.dp), // Clipped container
+                contentAlignment = Alignment.TopStart
+            ) {
+                androidx.glance.Image(
+                    provider = androidx.glance.ImageProvider(R.drawable.mascot_first),
+                    contentDescription = "Mascot",
+                    modifier = GlanceModifier.size(96.dp) // Actual large size
+                )
+            }
         }
     }
 }

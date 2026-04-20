@@ -4,12 +4,17 @@ import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 import '../models/settings_model.dart';
+import '../models/transaction_model.dart'; // Added for rollover calculation
 import '../services/backup_service.dart';
+import '../services/app_time_service.dart';
+import '../services/notification_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/currency_converter_sheet.dart';
 import '../widgets/liquid_glass.dart';
 import 'package:flutter/foundation.dart';
 import '../utils/web_compatibility_helper.dart';
+import '../utils/app_toast.dart';
+import 'export_settings_page.dart';
 
 // ─────────────────────────────────────────────────
 // Main Settings Hub
@@ -72,6 +77,34 @@ class SettingsScreen extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           _SettingsTile(
+            icon: Icons.notifications_active_rounded,
+            iconColor: const Color(0xFFEF6C00),
+            iconBgColor: const Color(0xFFEF6C00),
+            title: 'Thông báo thông minh',
+            subtitle: 'Bật tắt các nhắc nhở thông minh và giới hạn 3/ngày',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const NotificationSettingsPage(),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _SettingsTile(
+            icon: Icons.shield_rounded,
+            iconColor: const Color(0xFF1976D2),
+            iconBgColor: const Color(0xFF1976D2),
+            title: 'Bảo mật',
+            subtitle: 'Thiết lập khóa ứng dụng (FaceID/Vân tay)',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const SecuritySettingsPage(),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _SettingsTile(
             icon: Icons.smart_toy_rounded,
             iconColor: const Color(0xFF7F7FD5),
             iconBgColor: const Color(0xFF7F7FD5),
@@ -92,6 +125,34 @@ class SettingsScreen extends StatelessWidget {
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const BackupSettingsPage()),
+            ),
+          ),
+          if (kDebugMode) ...[
+            const SizedBox(height: 12),
+            _SettingsTile(
+              icon: Icons.schedule_rounded,
+              iconColor: const Color(0xFF7E57C2),
+              iconBgColor: const Color(0xFF7E57C2),
+              title: 'Điều khiển thời gian test',
+              subtitle: 'Tăng giảm ngày trong app để test streak nhanh',
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const TimeTravelSettingsPage(),
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          _SettingsTile(
+            icon: Icons.summarize_rounded,
+            iconColor: const Color(0xFF673AB7),
+            iconBgColor: const Color(0xFF673AB7),
+            title: 'Báo cáo & Xuất dữ liệu',
+            subtitle: 'Xuất file Excel hoặc PDF theo ngày/tháng/năm',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ExportSettingsPage()),
             ),
           ),
           const SizedBox(height: 12),
@@ -234,7 +295,7 @@ class _SalarySettingsPageState extends State<SalarySettingsPage> {
       double.tryParse(_controller.text.replaceAll(RegExp(r'[,.]'), '')) ?? 0;
 
   double get _computedDailyLimit {
-    final now = DateTime.now();
+    final now = AppTimeService.instance.now();
     final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
     return _parsedSalary > 0 ? _parsedSalary / daysInMonth : 0;
   }
@@ -391,13 +452,15 @@ class _SalarySettingsPageState extends State<SalarySettingsPage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Hạn mức hàng ngày',
-                                style: theme.textTheme.bodyMedium,
+                                'Hạn mức cơ bản',
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                               const SizedBox(height: 2),
                               Text(
                                 _parsedSalary > 0
-                                    ? fmt.format(_computedDailyLimit)
+                                    ? '${fmt.format(_computedDailyLimit)}/ngày'
                                     : '—',
                                 style: TextStyle(
                                   fontSize: 20,
@@ -405,10 +468,58 @@ class _SalarySettingsPageState extends State<SalarySettingsPage> {
                                   color: theme.primaryColor,
                                 ),
                               ),
+                              if (_parsedSalary > 0) ...[
+                                const SizedBox(height: 12),
+                                Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: theme.primaryColor
+                                          .withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Builder(builder: (context) {
+                                      final box =
+                                          Hive.box<Transaction>('transactions');
+                                      DateTime now =
+                                          AppTimeService.instance.now();
+                                      double monthSpentBeforeToday = 0;
+
+                                      for (var t in box.values) {
+                                        if (t.date.year == now.year &&
+                                            t.date.month == now.month) {
+                                          if (t.date.day < now.day) {
+                                            monthSpentBeforeToday += t.amount;
+                                          }
+                                        }
+                                      }
+
+                                      int daysPassedBeforeToday = now.day - 1;
+                                      double baseBudgetAccrued =
+                                          daysPassedBeforeToday *
+                                              _computedDailyLimit;
+                                      double rolloverBonus = baseBudgetAccrued -
+                                          monthSpentBeforeToday;
+                                      double dynamicDailyLimit =
+                                          _computedDailyLimit + rolloverBonus;
+                                      if (dynamicDailyLimit < 0) {
+                                        dynamicDailyLimit = 0;
+                                      }
+
+                                      return Text(
+                                        'Hạn mức hôm nay (Rollover): ${fmt.format(dynamicDailyLimit)}',
+                                        style: TextStyle(
+                                          color: theme.primaryColor,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          fontStyle: FontStyle.italic,
+                                        ),
+                                      );
+                                    }))
+                              ]
                             ],
                           ),
                         ),
-                        Text('/ngày', style: theme.textTheme.bodyMedium),
                       ],
                     ),
                   ),
@@ -449,7 +560,272 @@ class _SalarySettingsPageState extends State<SalarySettingsPage> {
 }
 
 // ─────────────────────────────────────────────────
-// 2. Appearance Settings Page
+// 2. Notification Settings Page
+// ─────────────────────────────────────────────────
+class NotificationSettingsPage extends StatelessWidget {
+  const NotificationSettingsPage({super.key});
+
+  Future<void> _updateSetting(
+    BuildContext context,
+    AppSettings settings,
+    String field,
+    bool value,
+  ) async {
+    switch (field) {
+      case 'notifMorningBudget':
+        settings.notifMorningBudget = value;
+        break;
+      case 'notifOverspendAlert':
+        settings.notifOverspendAlert = value;
+        break;
+      case 'notifHabitStreak':
+        settings.notifHabitStreak = value;
+        break;
+      case 'notifEveningSummary':
+        settings.notifEveningSummary = value;
+        break;
+      case 'notifWeeklyInsight':
+        settings.notifWeeklyInsight = value;
+        break;
+      case 'notifDebtReminder':
+        settings.notifDebtReminder = value;
+        break;
+      case 'notifEndOfMonth':
+        settings.notifEndOfMonth = value;
+        break;
+      case 'notifSavingsMilestone':
+        settings.notifSavingsMilestone = value;
+        break;
+    }
+
+    await settings.save();
+    await NotificationService().scheduleAllSmartNotifications();
+
+    if (!context.mounted) return;
+    AppToast.show(context, 'Đã cập nhật cài đặt thông báo.');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: Text('Thông báo thông minh', style: theme.textTheme.titleLarge),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new),
+          color: theme.iconTheme.color,
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: ValueListenableBuilder<Box<AppSettings>>(
+        valueListenable: Hive.box<AppSettings>('settings').listenable(),
+        builder: (context, box, _) {
+          final settings = box.get('appSettings') ?? AppSettings();
+          return ListView(
+            padding: const EdgeInsets.all(24),
+            children: [
+              Text(
+                'Mặc định bật',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 12),
+              _NotificationToggleTile(
+                emoji: '☀️',
+                title: 'Ngân sách buổi sáng',
+                subtitle: 'Nhắc ngân sách lúc 7:00 sáng',
+                value: settings.notifMorningBudget,
+                onChanged: (value) => _updateSetting(
+                  context,
+                  settings,
+                  'notifMorningBudget',
+                  value,
+                ),
+              ),
+              const SizedBox(height: 10),
+              _NotificationToggleTile(
+                emoji: '🔥',
+                title: 'Cảnh báo vượt chi',
+                subtitle: 'Báo khi chạm 80% hoặc vượt hạn mức ngày',
+                value: settings.notifOverspendAlert,
+                onChanged: (value) => _updateSetting(
+                  context,
+                  settings,
+                  'notifOverspendAlert',
+                  value,
+                ),
+              ),
+              const SizedBox(height: 10),
+              _NotificationToggleTile(
+                emoji: '💪',
+                title: 'Nhắc chuỗi thói quen',
+                subtitle: 'Nhắc buổi sáng và báo đóng băng hoặc hồi phục',
+                value: settings.notifHabitStreak,
+                onChanged: (value) => _updateSetting(
+                  context,
+                  settings,
+                  'notifHabitStreak',
+                  value,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Tùy chọn thêm',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 12),
+              _NotificationToggleTile(
+                emoji: '🌙',
+                title: 'Tổng kết buổi tối',
+                subtitle: 'Tóm tắt số giao dịch và tổng chi lúc 21:00',
+                value: settings.notifEveningSummary,
+                onChanged: (value) => _updateSetting(
+                  context,
+                  settings,
+                  'notifEveningSummary',
+                  value,
+                ),
+              ),
+              const SizedBox(height: 10),
+              _NotificationToggleTile(
+                emoji: '📊',
+                title: 'Nhận xét hàng tuần',
+                subtitle: 'So sánh tuần này với tuần trước vào Chủ nhật',
+                value: settings.notifWeeklyInsight,
+                onChanged: (value) => _updateSetting(
+                  context,
+                  settings,
+                  'notifWeeklyInsight',
+                  value,
+                ),
+              ),
+              const SizedBox(height: 10),
+              _NotificationToggleTile(
+                emoji: '💸',
+                title: 'Nhắc nợ',
+                subtitle: 'Nhắc các khoản nợ chưa thu hồi mỗi 3 ngày',
+                value: settings.notifDebtReminder,
+                onChanged: (value) => _updateSetting(
+                  context,
+                  settings,
+                  'notifDebtReminder',
+                  value,
+                ),
+              ),
+              const SizedBox(height: 10),
+              _NotificationToggleTile(
+                emoji: '⚡',
+                title: 'Dự báo cuối tháng',
+                subtitle: 'Nhắc từ ngày 25 với dự báo tổng chi',
+                value: settings.notifEndOfMonth,
+                onChanged: (value) => _updateSetting(
+                  context,
+                  settings,
+                  'notifEndOfMonth',
+                  value,
+                ),
+              ),
+              const SizedBox(height: 10),
+              _NotificationToggleTile(
+                emoji: '🎯',
+                title: 'Mục tiêu tiết kiệm',
+                subtitle: 'Báo khi hoàn thành một hũ tiết kiệm',
+                value: settings.notifSavingsMilestone,
+                onChanged: (value) => _updateSetting(
+                  context,
+                  settings,
+                  'notifSavingsMilestone',
+                  value,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: theme.primaryColor.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Text(
+                  'Tối đa 3 thông báo mỗi ngày. Khi có cảnh báo quan trọng hơn, app sẽ ưu tiên nó trước các nhắc nhở nhẹ hơn.',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _NotificationToggleTile extends StatelessWidget {
+  final String emoji;
+  final String title;
+  final String subtitle;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  const _NotificationToggleTile({
+    required this.emoji,
+    required this.title,
+    required this.subtitle,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        children: [
+          Text(emoji, style: const TextStyle(fontSize: 24)),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.textTheme.bodyMedium?.color?.withValues(
+                      alpha: 0.68,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch.adaptive(value: value, onChanged: onChanged),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────
+// 3. Appearance Settings Page
 // ─────────────────────────────────────────────────
 class AppearanceSettingsPage extends StatelessWidget {
   const AppearanceSettingsPage({super.key});
@@ -623,7 +999,257 @@ class _ThemeCard extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────
-// 3. About Page
+// 3. Time Travel Debug Page
+// ─────────────────────────────────────────────────
+class TimeTravelSettingsPage extends StatelessWidget {
+  const TimeTravelSettingsPage({super.key});
+
+  Future<void> _pickDate(BuildContext context) async {
+    final service = AppTimeService.instance;
+    final current = service.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: current,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+    );
+    if (picked == null || !context.mounted) return;
+
+    await service.setOverride(
+      DateTime(
+        picked.year,
+        picked.month,
+        picked.day,
+        current.hour,
+        current.minute,
+        current.second,
+      ),
+    );
+
+    await NotificationService().scheduleAllSmartNotifications();
+
+    if (!context.mounted) return;
+    AppToast.show(context, 'Đã cập nhật ngày test cho toàn app.');
+  }
+
+  Future<void> _shiftDays(BuildContext context, int days) async {
+    await AppTimeService.instance.shiftDays(days);
+    await NotificationService().scheduleAllSmartNotifications();
+    if (!context.mounted) return;
+    AppToast.show(
+      context,
+      days > 0 ? 'Đã tăng $days ngày trong app.' : 'Đã lùi ${days.abs()} ngày trong app.',
+    );
+  }
+
+  Future<void> _shiftHours(BuildContext context, int hours) async {
+    await AppTimeService.instance.shiftHours(hours);
+    await NotificationService().scheduleAllSmartNotifications();
+    if (!context.mounted) return;
+    AppToast.show(
+      context,
+      hours > 0 ? 'Đã tăng $hours giờ trong app.' : 'Đã lùi ${hours.abs()} giờ trong app.',
+    );
+  }
+
+  Future<void> _shiftMinutes(BuildContext context, int minutes) async {
+    await AppTimeService.instance.shiftMinutes(minutes);
+    await NotificationService().scheduleAllSmartNotifications();
+    if (!context.mounted) return;
+    AppToast.show(
+      context,
+      minutes > 0 ? 'Đã tăng $minutes phút trong app.' : 'Đã lùi ${minutes.abs()} phút trong app.',
+    );
+  }
+
+  Future<void> _reset(BuildContext context) async {
+    await AppTimeService.instance.setOverride(null);
+    await NotificationService().scheduleAllSmartNotifications();
+    if (!context.mounted) return;
+    AppToast.show(context, 'App đã quay lại thời gian thật của thiết bị.');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final formatter = DateFormat('dd/MM/yyyy • HH:mm');
+
+    return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: Text(
+          'Điều khiển thời gian test',
+          style: theme.textTheme.titleLarge,
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new),
+          color: theme.iconTheme.color,
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: ValueListenableBuilder<DateTime?>(
+        valueListenable: AppTimeService.instance.overrideNotifier,
+        builder: (context, overrideDate, _) {
+          final effectiveNow = AppTimeService.instance.now();
+          final realNow = DateTime.now();
+          final isOverridden = overrideDate != null;
+
+          return ListView(
+            padding: const EdgeInsets.all(24),
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: theme.cardColor,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: isOverridden
+                        ? const Color(0xFF7E57C2)
+                        : theme.dividerColor,
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Ngày app đang dùng',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      formatter.format(effectiveNow),
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: isOverridden
+                            ? const Color(0xFF7E57C2)
+                            : theme.textTheme.titleLarge?.color,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      isOverridden
+                          ? 'Đang dùng thời gian giả lập cho toàn app.'
+                          : 'Đang dùng thời gian thật của thiết bị.',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Giờ thiết bị: ${formatter.format(realNow)}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.textTheme.bodyMedium?.color?.withValues(
+                          alpha: 0.65,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 18),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  _TimeActionChip(
+                    label: '-1 ngày',
+                    onTap: () => _shiftDays(context, -1),
+                  ),
+                  _TimeActionChip(
+                    label: '+1 ngày',
+                    onTap: () => _shiftDays(context, 1),
+                  ),
+                  _TimeActionChip(
+                    label: '-1 giờ',
+                    onTap: () => _shiftHours(context, -1),
+                  ),
+                  _TimeActionChip(
+                    label: '+1 giờ',
+                    onTap: () => _shiftHours(context, 1),
+                  ),
+                  _TimeActionChip(
+                    label: '-10 phút',
+                    onTap: () => _shiftMinutes(context, -10),
+                  ),
+                  _TimeActionChip(
+                    label: '+10 phút',
+                    onTap: () => _shiftMinutes(context, 10),
+                  ),
+                  _TimeActionChip(
+                    label: '-1 phút',
+                    onTap: () => _shiftMinutes(context, -1),
+                  ),
+                  _TimeActionChip(
+                    label: '+1 phút',
+                    onTap: () => _shiftMinutes(context, 1),
+                  ),
+                  _TimeActionChip(
+                    label: '+7 ngày',
+                    onTap: () => _shiftDays(context, 7),
+                  ),
+                  _TimeActionChip(
+                    label: 'Chọn ngày',
+                    onTap: () => _pickDate(context),
+                  ),
+                  _TimeActionChip(
+                    label: 'Về thời gian thật',
+                    onTap: () => _reset(context),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: theme.primaryColor.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Text(
+                  'Sau khi đổi ngày, chuyển sang màn hình Thử thách để xem streak, nâng cấp, đóng băng và hồi phục cập nhật ngay.',
+                  style: theme.textTheme.bodyMedium,
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _TimeActionChip extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+
+  const _TimeActionChip({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      color: theme.cardColor,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Text(
+            label,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────
+// 4. About Page
 // ─────────────────────────────────────────────────
 class AboutPage extends StatefulWidget {
   const AboutPage({super.key});
@@ -768,7 +1394,7 @@ class _AboutPageState extends State<AboutPage> {
                   const SizedBox(height: 8),
                   // Version
                   Text(
-                    '1.0.0',
+                    '1.2.0',
                     style: TextStyle(
                       fontSize: 15,
                       color: theme.textTheme.bodyMedium?.color?.withValues(
@@ -901,13 +1527,7 @@ class _AISettingsPageState extends State<AISettingsPage> {
     final key = _apiKeyController.text.trim();
     settings.geminiApiKey = key.isEmpty ? null : key;
     settingsBox.put('appSettings', settings);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(key.isEmpty ? 'Đã xóa API Key' : 'Đã lưu API Key ✅'),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
+    AppToast.show(context, key.isEmpty ? 'Đã xóa API Key' : 'Đã lưu API Key ✅');
     setState(() {});
   }
 
@@ -1219,6 +1839,88 @@ class BackupSettingsPage extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────
+// 4. Security Settings Page
+// ─────────────────────────────────────────────────
+class SecuritySettingsPage extends StatelessWidget {
+  const SecuritySettingsPage({super.key});
+
+  Future<void> _updateSetting(
+    BuildContext context,
+    AppSettings settings,
+    bool value,
+  ) async {
+    settings.enableAppLock = value;
+    await settings.save();
+
+    if (!context.mounted) return;
+    AppToast.show(context, 'Đã cập nhật khóa ứng dụng.');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: Text('Bảo mật', style: theme.textTheme.titleLarge),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new),
+          color: theme.iconTheme.color,
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: ValueListenableBuilder<Box<AppSettings>>(
+        valueListenable: Hive.box<AppSettings>('settings').listenable(),
+        builder: (context, box, _) {
+          final settings = box.get('appSettings') ?? AppSettings();
+
+          return ListView(
+            padding: const EdgeInsets.all(24),
+            children: [
+              _NotificationToggleTile(
+                emoji: '🔒',
+                title: 'Khóa ứng dụng',
+                subtitle: 'Yêu cầu xác thực sinh trắc học khi mở hoặc quay lại ứng dụng',
+                value: settings.enableAppLock,
+                onChanged: (value) => _updateSetting(context, settings, value),
+              ),
+              const SizedBox(height: 24),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.amber.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: Colors.amber.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.warning_amber_rounded, color: Colors.amber),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Lưu ý: Nếu bạn tắt tính năng này, bất kỳ ai cầm điện thoại của bạn cũng có thể xem dữ liệu tài chính.',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.textTheme.bodyLarge?.color?.withValues(alpha: 0.8),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

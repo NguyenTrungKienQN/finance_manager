@@ -3,6 +3,7 @@ import 'package:hive/hive.dart';
 import 'package:uuid/uuid.dart';
 import '../models/savings_goal_model.dart';
 import '../widgets/currency_converter_sheet.dart';
+import '../utils/app_toast.dart';
 
 class AddSavingsGoalScreen extends StatefulWidget {
   const AddSavingsGoalScreen({super.key});
@@ -32,15 +33,11 @@ class _AddSavingsGoalScreenState extends State<AddSavingsGoalScreen> {
         0;
 
     if (name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng nhập tên mục tiêu')),
-      );
+      AppToast.show(context, 'Vui lòng nhập tên mục tiêu');
       return;
     }
     if (amount <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng nhập số tiền hợp lệ')),
-      );
+      AppToast.show(context, 'Vui lòng nhập số tiền hợp lệ');
       return;
     }
 

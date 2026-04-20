@@ -25,6 +25,13 @@ struct WidgetData {
         formatter.maximumFractionDigits = 0
         return (formatter.string(from: NSNumber(value: value)) ?? "0") + "₫"
     }
+
+    static func isIOS17OrNewer() -> Bool {
+        if #available(iOSApplicationExtension 17.0, *) {
+            return true
+        }
+        return false
+    }
 }
 
 // MARK: - 1. Daily Balance Widget
@@ -63,157 +70,142 @@ struct DailyBalanceWidgetView: View {
     let entry: DailyBalanceEntry
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Image(systemName: "creditcard.fill")
-                    .foregroundColor(.purple)
-                    .font(.caption)
-                Text("Chi tiêu hôm nay")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
+        GeometryReader { proxy in
+            ZStack {
+                // Background (Only for iOS < 17 where containerBackground isn't used)
+                if !WidgetData.isIOS17OrNewer() {
+                    VStack(spacing: 0) {
+                        LinearGradient(
+                            colors: [Color(hex: "6FA8FF"), Color(hex: "9B8CFF")],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                        .frame(height: proxy.size.height * 0.70)
 
-            Text(WidgetData.formatted(entry.remaining))
-                .font(.title2)
-                .fontWeight(.bold)
-                .foregroundColor(entry.isOverBudget ? .red : .green)
+                        Color(hex: "F2F2F7")
+                        .frame(height: proxy.size.height * 0.30)
+                    }
+                }
 
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.gray.opacity(0.2))
-                        .frame(height: 6)
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(entry.isOverBudget ? Color.red : Color.purple)
-                        .frame(width: geo.size.width * entry.progress, height: 6)
+                // Foreground
+                VStack(spacing: 0) {
+                    // TOP
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("HÔM NAY")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(.white.opacity(0.8))
+                            .kerning(1.2)
+                        
+                        Text(WidgetData.formatted(entry.remaining))
+                            .font(.system(size: 34, weight: .bold))
+                            .foregroundColor(.white)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.5)
+                            .padding(.top, 4)
+                        
+                        Text(entry.todaySpent > 0 ? "Còn lại" : "Chưa chi tiêu")
+                            .font(.system(size: 16, weight: .regular))
+                            .foregroundColor(.white.opacity(0.85))
+                        
+                        GeometryReader { geo in
+                            ZStack(alignment: .leading) {
+                                RoundedRectangle(cornerRadius: 4).fill(Color.white.opacity(0.25))
+                                if entry.progress > 0 {
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .fill(
+                                            LinearGradient(
+                                                colors: [Color(hex: "FF6B6B"), Color(hex: "FF8E8E")],
+                                                startPoint: .leading,
+                                                endPoint: .trailing
+                                            )
+                                        )
+                                        .frame(width: geo.size.width * entry.progress)
+                                }
+                            }
+                        }
+                        .frame(height: 8)
+                        .padding(.top, 12)
+                        
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.top, 20)
+                    .padding(.horizontal, 20)
+                    .frame(height: proxy.size.height * 0.70, alignment: .top)
+
+                    // BOTTOM (30% white section)
+                    HStack(alignment: .center, spacing: 0) {
+                        // Left: Text message
+                        Text(entry.isOverBudget ? "Đã vượt hạn mức." : "Bạn đang tiêu rất tốt hôm nay.")
+                            .font(.system(size: 12.5, weight: .regular))
+                            .foregroundColor(Color(hex: "6B6B6B"))
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.8)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.leading, 20)
+                            .frame(maxWidth: proxy.size.width * 0.7, alignment: .leading)
+                        
+                        Spacer(minLength: 0)
+                        
+                        // Right: Mascot pinned to the corner
+                        Image("defaultpose")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(height: proxy.size.height * 0.55)
+                            .offset(y: proxy.size.height * 0.08)
+                    }
+                    .frame(height: proxy.size.height * 0.30)
                 }
             }
-            .frame(height: 6)
-
-            HStack {
-                Text("Chi: \(WidgetData.formatted(entry.todaySpent))")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-                Spacer()
-                Text("HM: \(WidgetData.formatted(entry.dailyLimit))")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-            }
         }
-        .padding()
     }
 }
 
 struct DailyBalanceWidget: Widget {
     let kind = "DailyBalanceWidget"
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: kind, provider: DailyBalanceProvider()) { entry in
+        let config = StaticConfiguration(kind: kind, provider: DailyBalanceProvider()) { entry in
             if #available(iOSApplicationExtension 17.0, *) {
                 DailyBalanceWidgetView(entry: entry)
-                    .containerBackground(.fill.tertiary, for: .widget)
+                    .containerBackground(for: .widget) {
+                        VStack(spacing: 0) {
+                            LinearGradient(
+                                colors: [Color(hex: "6FA8FF"), Color(hex: "9B8CFF")],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                            Color(hex: "F2F2F7").frame(height: 50)
+                        }
+                    }
             } else {
                 DailyBalanceWidgetView(entry: entry)
-                    .background(Color("WidgetBackground"))
             }
         }
         .configurationDisplayName("Số dư ngày")
-        .description("Hiển thị chi tiêu hôm nay so với hạn mức.")
+        .description("Hiển thị chi tiêu hôm nay so with hạn mức.")
         .supportedFamilies([.systemSmall, .systemMedium])
-    }
-}
 
-// MARK: - 2. Weekly Summary Widget
-
-struct WeeklySummaryEntry: TimelineEntry {
-    let date: Date
-    let weekSpent: Double
-    let mostExpensiveCategory: String
-    let categoryAmount: Double
-}
-
-struct WeeklySummaryProvider: TimelineProvider {
-    func placeholder(in context: Context) -> WeeklySummaryEntry {
-        WeeklySummaryEntry(date: Date(), weekSpent: 1200000, mostExpensiveCategory: "Ăn uống", categoryAmount: 850000)
-    }
-    func getSnapshot(in context: Context, completion: @escaping (WeeklySummaryEntry) -> Void) {
-        completion(createEntry())
-    }
-    func getTimeline(in context: Context, completion: @escaping (Timeline<WeeklySummaryEntry>) -> Void) {
-        let timeline = Timeline(entries: [createEntry()], policy: .after(Date().addingTimeInterval(60 * 60)))
-        completion(timeline)
-    }
-    private func createEntry() -> WeeklySummaryEntry {
-        WeeklySummaryEntry(
-            date: Date(),
-            weekSpent: WidgetData.double("weekSpent"),
-            mostExpensiveCategory: WidgetData.string("topCategory", fallback: "Chưa có"),
-            categoryAmount: WidgetData.double("categoryAmount")
-        )
-    }
-}
-
-struct WeeklySummaryWidgetView: View {
-    let entry: WeeklySummaryEntry
-    @Environment(\.widgetFamily) var family
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Image(systemName: "chart.bar.fill")
-                    .foregroundColor(.blue)
-                Text("Tuần này")
-                    .font(.subheadline)
-                    .fontWeight(.bold)
-            }
-
-            Text(WidgetData.formatted(entry.weekSpent))
-                .font(.title2)
-                .fontWeight(.bold)
-
-            if family == .systemMedium || family == .systemLarge {
-                Divider()
-                Text("Nhiều nhất: \(entry.mostExpensiveCategory)")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                Text(WidgetData.formatted(entry.categoryAmount))
-                    .font(.subheadline)
-                    .foregroundColor(.red)
-            }
+        if #available(iOSApplicationExtension 17.0, *) {
+            return config.contentMarginsDisabled()
+        } else {
+            return config
         }
-        .padding()
     }
 }
 
-struct WeeklySummaryWidget: Widget {
-    let kind = "WeeklySummaryWidget"
-    var body: some WidgetConfiguration {
-        StaticConfiguration(kind: kind, provider: WeeklySummaryProvider()) { entry in
-            if #available(iOSApplicationExtension 17.0, *) {
-                WeeklySummaryWidgetView(entry: entry)
-                    .containerBackground(.fill.tertiary, for: .widget)
-            } else {
-                WeeklySummaryWidgetView(entry: entry)
-                    .background(Color("WidgetBackground"))
-            }
-        }
-        .configurationDisplayName("Tổng kết tuần")
-        .description("Xem nhanh chi tiêu trong tuần.")
-        .supportedFamilies([.systemMedium, .systemLarge])
-    }
-}
+
 
 // MARK: - 3. Spending Forecast Widget
 
 struct ForecastEntry: TimelineEntry {
     let date: Date
     let projectedSpend: Double
-    let safeToSpendDaily: Double
-    let status: String
+    let avgDailySpend: Double
+    let monthlyBudget: Double
 }
 
 struct ForecastProvider: TimelineProvider {
     func placeholder(in context: Context) -> ForecastEntry {
-        ForecastEntry(date: Date(), projectedSpend: 9500000, safeToSpendDaily: 250000, status: "Tốt")
+        ForecastEntry(date: Date(), projectedSpend: 9500000, avgDailySpend: 250000, monthlyBudget: 10000000)
     }
     func getSnapshot(in context: Context, completion: @escaping (ForecastEntry) -> Void) {
         completion(createEntry())
@@ -226,8 +218,8 @@ struct ForecastProvider: TimelineProvider {
         ForecastEntry(
             date: Date(),
             projectedSpend: WidgetData.double("projectedSpend"),
-            safeToSpendDaily: WidgetData.double("safeToSpendDaily"),
-            status: WidgetData.string("forecastStatus", fallback: "-")
+            avgDailySpend: WidgetData.double("avgDailySpend"),
+            monthlyBudget: WidgetData.double("monthlyBudget")
         )
     }
 }
@@ -236,149 +228,145 @@ struct ForecastWidgetView: View {
     let entry: ForecastEntry
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Image(systemName: "sparkles")
-                    .foregroundColor(.yellow)
-                Text("Dự báo")
-                    .font(.subheadline)
-                    .fontWeight(.bold)
-            }
+        GeometryReader { proxy in
+            ZStack {
+                // Background Gradient (Dark Navy Glassmorphism)
+                RoundedRectangle(cornerRadius: 32)
+                    .fill(
+                        LinearGradient(
+                            colors: [Color(hex: "1B263B"), Color(hex: "0D1B2A")],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 32)
+                            .stroke(Color.white.opacity(0.08), lineWidth: 1.5)
+                    )
 
-            HStack {
-                VStack(alignment: .leading) {
-                    Text("Dự kiến")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                    Text(WidgetData.formatted(entry.projectedSpend))
-                        .font(.headline)
+                // Content
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("DỰ BÁO")
+                        .font(.system(size: 13, weight: .medium, design: .default))
+                        .foregroundColor(.white.opacity(0.7))
+                        .kerning(2.0)
+                    
+                    Spacer().frame(height: 12)
+                    
+                    Text(getHeadline())
+                        .font(.system(size: 26, weight: .bold))
+                        .foregroundColor(.white)
+                        .lineSpacing(4)
+                        .lineLimit(2)
+                    
+                    Spacer().frame(height: 8)
+                    
+                    Text(getSubtitle())
+                        .font(.system(size: 15, weight: .regular))
+                        .foregroundColor(.white.opacity(0.75))
+                    
+                    Spacer(minLength: 0)
                 }
-                Spacer()
-                VStack(alignment: .trailing) {
-                    Text("Có thể chi / ngày")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                    Text(WidgetData.formatted(entry.safeToSpendDaily))
-                        .font(.headline)
-                        .foregroundColor(.green)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 26)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                // Mascot logic
+                VStack {
+                    Spacer()
+                    HStack {
+                        Spacer()
+                        ZStack {
+                            // Soft shadow
+                            Image(getMascotName())
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .foregroundColor(.black.opacity(0.4))
+                                .blur(radius: 12)
+                                .offset(y: 8)
+                            
+                            Image(getMascotName())
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                        }
+                        .frame(height: 110)
+                        .offset(x: 15, y: 15) // Overflow bottom-right
+                    }
                 }
             }
-
-            Text("Trạng thái: \(entry.status)")
-                .font(.caption)
-                .foregroundColor(.secondary)
         }
-        .padding()
+    }
+
+    private func getMascotName() -> String {
+        return isDanger() ? "mascotsad" : "defaultpose"
+    }
+
+    private func isDanger() -> Bool {
+        return entry.projectedSpend > entry.monthlyBudget
+    }
+
+    private func getHeadline() -> String {
+        if entry.avgDailySpend == 0 {
+            return "Chưa có dữ liệu\ntháng này"
+        }
+        
+        if isDanger() {
+            // Re-calculate current spend to estimate exhaustion day
+            let calendar = Calendar.current
+            let range = calendar.range(of: .day, in: .month, for: Date())
+            let daysInMonth = Double(range?.count ?? 30)
+            let today = Double(calendar.component(.day, from: Date()))
+            let daysRemaining = daysInMonth - today
+            
+            let currentSpent = entry.projectedSpend - (entry.avgDailySpend * daysRemaining)
+            var daysLeft = Int((entry.monthlyBudget - currentSpent) / entry.avgDailySpend)
+            if daysLeft < 0 { daysLeft = 0 }
+            
+            let exhaustionDate = calendar.date(byAdding: .day, value: daysLeft, to: Date()) ?? Date()
+            let weekday = calendar.component(.weekday, from: exhaustionDate)
+            let weekdayStrs = ["", "Chủ nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"]
+            let dayName = weekdayStrs[weekday]
+            
+            if daysLeft == 0 { return "Bạn đã hết tiền\nhôm nay" }
+            if daysLeft == 1 { return "Bạn sẽ hết tiền\nvào ngày mai" }
+            return "Bạn sẽ hết tiền\nvào \(dayName)"
+        }
+        
+        return "Bạn đang chi tiêu\nổn định"
+    }
+
+    private func getSubtitle() -> String {
+        if entry.avgDailySpend == 0 { return "Hãy thêm giao dịch để xem dự báo" }
+        return isDanger() ? "Nếu giữ mức chi hiện tại" : "Chưa có dấu hiệu vượt hạn mức"
     }
 }
 
 struct ForecastWidget: Widget {
     let kind = "ForecastWidget"
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: kind, provider: ForecastProvider()) { entry in
+        let config = StaticConfiguration(kind: kind, provider: ForecastProvider()) { entry in
             if #available(iOSApplicationExtension 17.0, *) {
                 ForecastWidgetView(entry: entry)
-                    .containerBackground(.fill.tertiary, for: .widget)
+                    .containerBackground(for: .widget) {
+                        EmptyView()
+                    }
             } else {
                 ForecastWidgetView(entry: entry)
-                    .background(Color("WidgetBackground"))
             }
         }
         .configurationDisplayName("Dự báo chi tiêu")
         .description("Dự báo chi tiêu cuối tháng.")
         .supportedFamilies([.systemMedium])
-    }
-}
 
-// MARK: - 4. Savings Goal Widget
-
-struct SavingsGoalEntry: TimelineEntry {
-    let date: Date
-    let goalName: String
-    let currentAmount: Double
-    let targetAmount: Double
-    var progress: Double { targetAmount > 0 ? currentAmount / targetAmount : 0 }
-}
-
-struct SavingsGoalProvider: TimelineProvider {
-    func placeholder(in context: Context) -> SavingsGoalEntry {
-        SavingsGoalEntry(date: Date(), goalName: "Du lịch hè", currentAmount: 5000000, targetAmount: 20000000)
-    }
-    func getSnapshot(in context: Context, completion: @escaping (SavingsGoalEntry) -> Void) {
-        completion(createEntry())
-    }
-    func getTimeline(in context: Context, completion: @escaping (Timeline<SavingsGoalEntry>) -> Void) {
-        let timeline = Timeline(entries: [createEntry()], policy: .after(Date().addingTimeInterval(30 * 60)))
-        completion(timeline)
-    }
-    private func createEntry() -> SavingsGoalEntry {
-        SavingsGoalEntry(
-            date: Date(),
-            goalName: WidgetData.string("topGoalName", fallback: "Tiết kiệm"),
-            currentAmount: WidgetData.double("topGoalCurrent"),
-            targetAmount: WidgetData.double("topGoalTarget")
-        )
-    }
-}
-
-struct SavingsGoalWidgetView: View {
-    let entry: SavingsGoalEntry
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Image(systemName: "target")
-                    .foregroundColor(.green)
-                    .font(.caption)
-                Text(entry.goalName)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-
-            Text(WidgetData.formatted(entry.currentAmount))
-                .font(.headline)
-
-            ZStack(alignment: .leading) {
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(Color.gray.opacity(0.2))
-                    .frame(height: 8)
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(Color.green)
-                    .frame(width: max(0, min(150, 150 * CGFloat(entry.progress))), height: 8)
-            }
-
-            if entry.progress >= 1.0 {
-                Text("✓ Đã đạt!")
-                    .font(.caption2)
-                    .foregroundColor(.green)
-                    .fontWeight(.bold)
-            } else {
-                Text("Mục tiêu: \(WidgetData.formatted(entry.targetAmount))")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-            }
+        if #available(iOSApplicationExtension 17.0, *) {
+            return config.contentMarginsDisabled()
+        } else {
+            return config
         }
-        .padding()
     }
 }
 
-struct SavingsGoalWidget: Widget {
-    let kind = "SavingsGoalWidget"
-    var body: some WidgetConfiguration {
-        StaticConfiguration(kind: kind, provider: SavingsGoalProvider()) { entry in
-            if #available(iOSApplicationExtension 17.0, *) {
-                SavingsGoalWidgetView(entry: entry)
-                    .containerBackground(.fill.tertiary, for: .widget)
-            } else {
-                SavingsGoalWidgetView(entry: entry)
-                    .background(Color("WidgetBackground"))
-            }
-        }
-        .configurationDisplayName("Mục tiêu tiết kiệm")
-        .description("Theo dõi tiến độ mục tiêu của bạn.")
-        .supportedFamilies([.systemSmall])
-    }
-}
+
 
 // MARK: - 5. Quick Add Transaction Widget
 
@@ -402,17 +390,65 @@ struct QuickAddWidgetView: View {
     let entry: QuickAddEntry
 
     var body: some View {
-        Link(destination: URL(string: "financemanager://open_add_transaction")!) {
-            VStack {
-                Image(systemName: "plus.circle.fill")
-                    .resizable()
-                    .frame(width: 40, height: 40)
-                    .foregroundColor(.purple)
-                Text("Thêm giao dịch")
-                    .font(.caption)
-                    .fontWeight(.medium)
-                    .padding(.top, 4)
+        Link(destination: URL(string: "fmanager://add_transaction?homeWidget")!) {
+            ZStack {
+                // Background Gradient
+                RoundedRectangle(cornerRadius: 28)
+                    .fill(
+                        LinearGradient(
+                            gradient: Gradient(colors: [Color(hex: "F2F3F7"), Color(hex: "EDEFF5")]),
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    .shadow(color: .black.opacity(0.1), radius: 20, x: 0, y: 10)
+
+                // Main Content
+                VStack(spacing: 0) {
+                    Spacer(minLength: 12)
+                    
+                    // Circular Action Button
+                    ZStack {
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    gradient: Gradient(colors: [Color(hex: "6FE0FF"), Color(hex: "7A7CFF"), Color(hex: "B084FF")]),
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .frame(width: 60, height: 60)
+                            .shadow(color: Color(hex: "7A7CFF").opacity(0.35), radius: 10, x: 0, y: 8)
+
+                        Image(systemName: "plus")
+                            .font(.system(size: 28, weight: .bold))
+                            .foregroundColor(.white)
+                    }
+
+                    Spacer(minLength: 8)
+
+                    Text("Thêm nhanh")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundColor(Color(hex: "4A4F5A"))
+                        .lineLimit(1)
+                    
+                    Spacer(minLength: 45) // Larger gap at the bottom for the mascot
+                }
+
+                // Mascot - Peeking from bottom right
+                VStack {
+                    Spacer()
+                    HStack {
+                        Spacer()
+                        Image("mascotfirst")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 96, height: 96)
+                            .offset(x: 10, y: 45) // Submerge the lower half
+                    }
+                }
             }
+            .clipShape(RoundedRectangle(cornerRadius: 28)) // Ensure mascot is clipped
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
@@ -421,7 +457,7 @@ struct QuickAddWidgetView: View {
 struct QuickAddWidget: Widget {
     let kind = "QuickAddWidget"
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: kind, provider: QuickAddProvider()) { entry in
+        let config = StaticConfiguration(kind: kind, provider: QuickAddProvider()) { entry in
             if #available(iOSApplicationExtension 17.0, *) {
                 QuickAddWidgetView(entry: entry)
                     .containerBackground(.fill.tertiary, for: .widget)
@@ -433,6 +469,12 @@ struct QuickAddWidget: Widget {
         .configurationDisplayName("Thêm nhanh")
         .description("Mở app nhanh để thêm giao dịch")
         .supportedFamilies([.systemSmall])
+
+        if #available(iOSApplicationExtension 17.0, *) {
+            return config.contentMarginsDisabled()
+        } else {
+            return config
+        }
     }
 }
 
@@ -443,11 +485,12 @@ struct HabitBreakerEntry: TimelineEntry {
     let habitName: String
     let streak: Int
     let status: String
+    let widgetState: String // "none" | "active" | "failed" | "frozen"
 }
 
 struct HabitBreakerProvider: TimelineProvider {
     func placeholder(in context: Context) -> HabitBreakerEntry {
-        HabitBreakerEntry(date: Date(), habitName: "Cà phê", streak: 7, status: "Khởi đầu tốt! 🌱")
+        HabitBreakerEntry(date: Date(), habitName: "Cà phê", streak: 7, status: "Đừng phá hôm nay.", widgetState: "active")
     }
     func getSnapshot(in context: Context, completion: @escaping (HabitBreakerEntry) -> Void) {
         completion(createEntry())
@@ -459,9 +502,10 @@ struct HabitBreakerProvider: TimelineProvider {
     private func createEntry() -> HabitBreakerEntry {
         HabitBreakerEntry(
             date: Date(),
-            habitName: WidgetData.string("habitName", fallback: "Chưa có"),
+            habitName: WidgetData.string("habitName", fallback: "Chưa có thử thách"),
             streak: WidgetData.int("habitStreak"),
-            status: WidgetData.string("habitStatus", fallback: "Bắt đầu ngay!")
+            status: WidgetData.string("habitStatus", fallback: "Tạo thử thách để bắt đầu"),
+            widgetState: WidgetData.string("habitWidgetState", fallback: "none")
         )
     }
 }
@@ -469,59 +513,99 @@ struct HabitBreakerProvider: TimelineProvider {
 struct HabitBreakerWidgetView: View {
     let entry: HabitBreakerEntry
 
+    // Dynamic mascot based on state
+    private var mascotImageName: String {
+        switch entry.widgetState {
+        case "active": return "mascotfirst"
+        case "failed": return "mascotsad"
+        case "frozen": return "mascotwait"
+        default: return "mascotwait"
+        }
+    }
+
+    // Dynamic main text
+    private var mainText: String {
+        switch entry.widgetState {
+        case "active", "failed", "frozen": return entry.habitName
+        default: return "Chưa có thử thách"
+        }
+    }
+
+    // Dynamic subtext
+    private var subText: String {
+        entry.status
+    }
+
     var body: some View {
-        ZStack {
-            // Main Content
-            VStack(alignment: .leading, spacing: 0) {
-                // Top Left Labels
-                Text("THÓI QUEN")
-                    .font(.system(size: 9, weight: .bold))
-                    .foregroundColor(.white.opacity(0.8))
-                    .kerning(0.5)
+        GeometryReader { geo in
+            ZStack {
+                // Warm gradient background with orange border
+                RoundedRectangle(cornerRadius: 28)
+                    .strokeBorder(
+                        LinearGradient(
+                            gradient: Gradient(colors: [Color(hex: "F5C6A0"), Color(hex: "E8A0B0")]),
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        ),
+                        lineWidth: 2.5
+                    )
+                    .background(
+                        RoundedRectangle(cornerRadius: 28)
+                            .fill(
+                                LinearGradient(
+                                    gradient: Gradient(colors: [Color(hex: "FFF0E6"), Color(hex: "FFEEE8"), Color(hex: "FFE4ED")]),
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                    )
 
-                Text(entry.habitName)
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundColor(.white)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
-                    .padding(.top, 2)
+                // Content: Mascot left, Text right
+                HStack(spacing: 0) {
+                    // Mascot — takes ~38% of widget width
+                    Image(mascotImageName)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: geo.size.width * 0.38, height: geo.size.height * 0.9)
+                        .padding(.leading, 8)
 
-                Spacer()
+                    Spacer(minLength: 8)
 
-                // Center Stack
-                VStack(spacing: -3) {
-                    Text("🔥")
-                        .font(.system(size: 24))
-                    
-                    Text("\(entry.streak)")
-                        .font(.system(size: 36, weight: .bold))
-                        .foregroundColor(.white)
-                        .minimumScaleFactor(0.5)
-                        .lineLimit(1)
-                    
-                    Text("Ngày liên tiếp")
-                        .font(.system(size: 10))
-                        .foregroundColor(.white.opacity(0.8))
-                        .padding(.top, 2)
+                    // Text content — vertically centered, left-aligned
+                    VStack(alignment: .leading, spacing: 0) {
+                        // Header row: 🔥 Thử thách
+                        HStack(spacing: 4) {
+                            Text("🔥")
+                                .font(.system(size: 14))
+                            Text("Thử thách")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(Color(hex: "5A3E36"))
+                                .tracking(0.5)
+                        }
+
+                        Spacer().frame(height: 12)
+
+                        // Main text (challenge name or placeholder)
+                        Text(mainText)
+                            .font(.system(size: 20, weight: .bold))
+                            .foregroundColor(Color(hex: "5A3E36"))
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.7)
+
+                        Spacer().frame(height: 10)
+
+                        // Subtext
+                        Text(subText)
+                            .font(.system(size: 13, weight: .regular))
+                            .foregroundColor(Color(hex: "7A5C50"))
+                            .lineLimit(1)
+                    }
+                    .padding(.trailing, 20)
+                    .padding(.vertical, 16)
                 }
-                .frame(maxWidth: .infinity) // Center horizontally
-
-                Spacer()
-                // Spacer pushes the status bar down, but we pin it perfectly with another Vstack layer
-            }
-            .padding(12)
-            
-            // Bottom Status Bar Pinned
-            VStack {
-                Spacer()
-                Text(entry.status)
-                    .font(.system(size: 10))
-                    .foregroundColor(Color(hex: "4CAF50")) // Android Green
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 4)
-                    .background(Color.white.opacity(0.2))
             }
         }
+        .widgetURL(URL(string: "fmanager://habit_breaker?homeWidget"))
     }
 }
 
@@ -556,161 +640,42 @@ extension Color {
 struct HabitBreakerWidget: Widget {
     let kind = "HabitBreakerWidget"
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: kind, provider: HabitBreakerProvider()) { entry in
+        let config = StaticConfiguration(kind: kind, provider: HabitBreakerProvider()) { entry in
             if #available(iOSApplicationExtension 17.0, *) {
                 HabitBreakerWidgetView(entry: entry)
-                    .containerBackground(
-                        LinearGradient(
-                            gradient: Gradient(colors: [Color(hex: "1A237E"), .black]),
-                            startPoint: .bottomLeading,
-                            endPoint: .topTrailing
-                        ),
-                        for: .widget
-                    )
+                    .containerBackground(.clear, for: .widget)
             } else {
                 HabitBreakerWidgetView(entry: entry)
-                    .background(
-                        LinearGradient(
-                            gradient: Gradient(colors: [Color(hex: "1A237E"), .black]),
-                            startPoint: .bottomLeading,
-                            endPoint: .topTrailing
-                        )
-                    )
             }
         }
-        .configurationDisplayName("Thói quen")
+        .configurationDisplayName("Thử thách")
         .description("Theo dõi chuỗi ngày bỏ thói quen")
-        .supportedFamilies([.systemSmall])
+        .supportedFamilies([.systemMedium])
+
+        if #available(iOSApplicationExtension 17.0, *) {
+            return config.contentMarginsDisabled()
+        } else {
+            return config
+        }
     }
 }
 
 // MARK: - Widget Bundle
 
-// MARK: - 7. Recurring Widget
 
-struct RecurringEntry: TimelineEntry {
-    let date: Date
-    let title: String
-    let amount: Double
-    let daysUntilDue: Int
-}
 
-struct RecurringProvider: TimelineProvider {
-    func placeholder(in context: Context) -> RecurringEntry {
-        RecurringEntry(date: Date(), title: "Tiền nhà", amount: 5000000, daysUntilDue: 3)
-    }
-    func getSnapshot(in context: Context, completion: @escaping (RecurringEntry) -> Void) {
-        completion(createEntry())
-    }
-    func getTimeline(in context: Context, completion: @escaping (Timeline<RecurringEntry>) -> Void) {
-        let timeline = Timeline(entries: [createEntry()], policy: .after(Date().addingTimeInterval(30 * 60)))
-        completion(timeline)
-    }
-    private func createEntry() -> RecurringEntry {
-        RecurringEntry(
-            date: Date(),
-            title: WidgetData.string("recurringTitle", fallback: "Chưa có"),
-            amount: WidgetData.double("recurringAmount"),
-            daysUntilDue: WidgetData.int("recurringDays")
-        )
-    }
-}
-
-struct RecurringWidgetView: View {
-    let entry: RecurringEntry
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Image(systemName: "repeat.circle.fill")
-                    .foregroundColor(.blue)
-                    .font(.caption)
-                Text("Sắp đến hạn")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-
-            Text(entry.title)
-                .font(.headline)
-                .lineLimit(1)
-
-            Text(WidgetData.formatted(entry.amount))
-                .font(.title3)
-                .fontWeight(.bold)
-                .foregroundColor(.red)
-
-            ZStack(alignment: .leading) {
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(Color.gray.opacity(0.2))
-                    .frame(height: 6)
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(entry.daysUntilDue <= 3 ? Color.red : Color.blue)
-                    .frame(width: max(0, min(150, 150 * (max(0, 30.0 - Double(entry.daysUntilDue)) / 30.0))), height: 6)
-            }
-            .padding(.vertical, 4)
-
-            if entry.daysUntilDue < 0 {
-                Text("Đã quá hạn \(abs(entry.daysUntilDue)) ngày!")
-                    .font(.caption2)
-                    .foregroundColor(.red)
-                    .fontWeight(.bold)
-            } else if entry.daysUntilDue == 0 {
-                Text("Đến hạn hôm nay!")
-                    .font(.caption2)
-                    .foregroundColor(.red)
-                    .fontWeight(.bold)
-            } else {
-                Text("Còn \(entry.daysUntilDue) ngày")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-            }
-        }
-        .padding()
-    }
-}
-
-struct RecurringWidget: Widget {
-    let kind = "RecurringWidget"
-    var body: some WidgetConfiguration {
-        StaticConfiguration(kind: kind, provider: RecurringProvider()) { entry in
-            if #available(iOSApplicationExtension 17.0, *) {
-                RecurringWidgetView(entry: entry)
-                    .containerBackground(.fill.tertiary, for: .widget)
-            } else {
-                RecurringWidgetView(entry: entry)
-                    .background(Color("WidgetBackground"))
-            }
-        }
-        .configurationDisplayName("Chi phí định kỳ")
-        .description("Khoản chi định kỳ sắp đến hạn nhất.")
-        .supportedFamilies([.systemSmall])
-    }
-}
-
-// MARK: - Widget Bundle Workarounds for iOS 14
-// iOS 14 limit is 5 widgets per bundle. We have 7. We must split them.
-
-struct FinanceWidgetGroup1: WidgetBundle {
+struct FinanceWidgetGroup: WidgetBundle {
     var body: some Widget {
         DailyBalanceWidget()
-        WeeklySummaryWidget()
         ForecastWidget()
-        SavingsGoalWidget()
-    }
-}
-
-struct FinanceWidgetGroup2: WidgetBundle {
-    var body: some Widget {
         QuickAddWidget()
         HabitBreakerWidget()
-        RecurringWidget()
     }
 }
 
 @main
 struct FinanceWidgetBundle: WidgetBundle {
     var body: some Widget {
-        FinanceWidgetGroup1().body
-        FinanceWidgetGroup2().body
+        FinanceWidgetGroup().body
     }
 }

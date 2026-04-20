@@ -7,6 +7,7 @@ import '../services/notification_service.dart';
 import '../models/transaction_model.dart';
 // import '../main.dart'; // AppColors removed
 import '../widgets/currency_converter_sheet.dart';
+import '../utils/app_toast.dart';
 
 class RecurringScreen extends StatefulWidget {
   const RecurringScreen({super.key});
@@ -127,12 +128,7 @@ class _RecurringScreenState extends State<RecurringScreen> {
     }
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Đã thanh toán ${item.title}'),
-          backgroundColor: Theme.of(context).primaryColor,
-        ),
-      );
+      AppToast.show(context, 'Đã thanh toán ${item.title}');
     }
   }
 
@@ -247,7 +243,7 @@ class _RecurringScreenState extends State<RecurringScreen> {
                         flex: 3,
                         child: DropdownButtonFormField<RecurringFrequency>(
                           key: ValueKey(selectedFrequency),
-                          value: selectedFrequency,
+                          initialValue: selectedFrequency,
                           dropdownColor: Theme.of(context).cardColor,
                           style: TextStyle(
                               color:

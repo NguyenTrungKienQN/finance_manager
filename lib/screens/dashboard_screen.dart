@@ -1,4 +1,3 @@
-import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -6,15 +5,20 @@ import 'package:intl/intl.dart';
 import 'package:home_widget/home_widget.dart';
 import '../models/transaction_model.dart';
 import '../models/settings_model.dart';
-import '../models/savings_goal_model.dart';
 import '../screens/add_transaction_screen.dart';
 import '../screens/settings_screen.dart';
 import '../widgets/weekly_chart_widget.dart';
 import '../widgets/dashboard_stack.dart';
 import '../theme/app_theme.dart';
 import '../models/habit_breaker_model.dart';
-import '../models/recurring_transaction_model.dart';
 import '../widgets/home_widgets/modern_home_widgets.dart';
+import '../widgets/habit_broken_dialog.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/app_time_service.dart';
+import '../services/gemini_chat_service.dart';
+import '../services/notification_service.dart';
+import '../main.dart';
+import '../utils/app_toast.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -24,18 +28,58 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  late double _dailyLimit;
+  late double _dailyLimit;      // Rollover-adjusted, used for AddTransaction & home widget
+  late double _baseDailyLimit;   // Raw monthlySalary / daysInMonth, used for cards that self-compute rollover
   late double _monthlySalary;
-  DateTime _selectedDate = DateTime.now();
+  DateTime _selectedDate = AppTimeService.instance.now();
   String _userName = "Bạn";
+
+  Future<void> _handleMatchedHabitRelapse(HabitBreaker habit) async {
+    final lostStreak = habit.currentStreak;
+    final result = habit.handleRelapse();
+
+    if (result == RelapseResult.fullReset) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('last_broken_habit_id', habit.id);
+      await prefs.setString(
+        'last_broken_time',
+        AppTimeService.instance.now().toIso8601String(),
+      );
+    }
+
+    if (!mounted) {
+      _updateHomeWidget();
+      return;
+    }
+
+    if (result == RelapseResult.shieldAbsorbed) {
+      await showShieldAbsorbedDialog(context, habitName: habit.habitName);
+    } else if (result == RelapseResult.frozen) {
+      await NotificationService().fireStreakFrozen(habit);
+      if (!mounted) return;
+      await showStreakFrozenDialog(context, habitName: habit.habitName);
+    } else {
+      await showFullResetDialog(
+        context,
+        habitName: habit.habitName,
+        lostStreak: lostStreak,
+      );
+    }
+
+    _updateHomeWidget();
+  }
 
   @override
   void initState() {
     super.initState();
     HomeWidget.setAppGroupId('group.com.therize.fmanager');
+    AppTimeService.instance.overrideNotifier.addListener(_handleTimeOverride);
     _loadSettings();
     Hive.box<Transaction>(
       'transactions',
+    ).listenable().addListener(_updateHomeWidget);
+    Hive.box<HabitBreaker>(
+      'habitBreakers',
     ).listenable().addListener(_updateHomeWidget);
 
     _checkForWidgetLaunch();
@@ -47,22 +91,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _launchedFromWidget(Uri? uri) {
-    if (uri != null && uri.scheme == 'fmanager' && uri.host == 'add_transaction') {
+    if (uri == null || uri.scheme != 'fmanager') return;
+
+    final target = uri.host;
+
+    if (target == 'add_transaction' || uri.path.contains('add_transaction')) {
       Future.delayed(const Duration(milliseconds: 100), () async {
         if (mounted) {
           final result = await Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => AddTransactionScreen(dailyLimit: _dailyLimit)),
+            MaterialPageRoute(
+              builder: (context) =>
+                  AddTransactionScreen(dailyLimit: _dailyLimit),
+            ),
           );
-          
+
           if (result != null && result is HabitBreaker) {
-            result.resetStreak();
-            if (mounted) {
-              _showHabitBrokenDialog(result);
-            }
+            await _handleMatchedHabitRelapse(result);
+          } else {
+            _updateHomeWidget();
           }
-          
-          _updateHomeWidget();
+        }
+      });
+    } else if (target == 'habit_breaker' ||
+        uri.path.contains('habit_breaker')) {
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (mounted) {
+          // Navigate to Habit Breaker tab (index 4) using the GlobalKey
+          MyHomePage.globalKey.currentState?.navigateToTab(4);
         }
       });
     }
@@ -70,10 +126,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   void dispose() {
+    AppTimeService.instance.overrideNotifier
+        .removeListener(_handleTimeOverride);
     Hive.box<Transaction>(
       'transactions',
     ).listenable().removeListener(_updateHomeWidget);
+    Hive.box<HabitBreaker>(
+      'habitBreakers',
+    ).listenable().removeListener(_updateHomeWidget);
     super.dispose();
+  }
+
+  void _handleTimeOverride() {
+    if (!mounted) return;
+    setState(() {
+      _selectedDate = AppTimeService.instance.now();
+    });
+    _loadSettings();
   }
 
   void _loadSettings() {
@@ -86,6 +155,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     setState(() {
       _monthlySalary = settings!.monthlySalary;
       _dailyLimit = settings.computedDailyLimit;
+      // Base limit = pure salary ÷ days — no rollover, so cards that add
+      // rollover themselves don't double-count it.
+      final now = AppTimeService.instance.now();
+      final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
+      _baseDailyLimit = daysInMonth > 0 ? settings.monthlySalary / daysInMonth : settings.monthlySalary;
       _userName = settings.userName;
     });
     _updateHomeWidget();
@@ -93,7 +167,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   void _updateHomeWidget() async {
     if (kIsWeb) return; // Prevent Home Widget code from executing on web
-    
+
     // Helper to get exact widget size requested by Android
     Future<Size> getWidgetLogicalSize(String key, Size defaultSize) async {
       try {
@@ -110,7 +184,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
 
     try {
-      final now = DateTime.now();
+      final now = AppTimeService.instance.now();
       final box = Hive.box<Transaction>('transactions');
       final allTransactions = box.values.toList();
 
@@ -127,67 +201,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
       try {
         await HomeWidget.renderFlutterWidget(
           DailyBalanceHomeWidget(spent: todaySpent, limit: _dailyLimit),
-          logicalSize: await getWidgetLogicalSize('widget_daily_balance', const Size(360, 170)),
+          logicalSize: await getWidgetLogicalSize(
+              'widget_daily_balance', const Size(360, 170)),
           key: 'widget_daily_balance_image',
         );
-        await HomeWidget.saveWidgetData<String>('todaySpent', todaySpent.toString());
-        await HomeWidget.saveWidgetData<String>('dailyLimit', _dailyLimit.toString());
+        await HomeWidget.saveWidgetData<String>(
+            'todaySpent', todaySpent.toString());
+        await HomeWidget.saveWidgetData<String>(
+            'dailyLimit', _dailyLimit.toString());
       } catch (e) {
         if (kDebugMode) print("Error rendering daily balance widget: $e");
-      }
-
-      // === Weekly Summary Data ===
-      final weekStart = now.subtract(Duration(days: now.weekday - 1));
-      final weeklyTransactions = allTransactions.where((t) {
-        final d = t.date;
-        return !d.isBefore(
-              DateTime(weekStart.year, weekStart.month, weekStart.day),
-            ) &&
-            !d.isAfter(now);
-      }).toList();
-
-      double weeklyTotal = weeklyTransactions.fold(
-        0.0,
-        (sum, t) => sum + t.amount,
-      );
-      int weekDays = now.weekday;
-      double weeklyAvg = weekDays > 0 ? weeklyTotal / weekDays : 0;
-
-      // Top category
-      Map<String, double> categoryTotals = {};
-      for (var t in weeklyTransactions) {
-        categoryTotals[t.category] =
-            (categoryTotals[t.category] ?? 0) + t.amount;
-      }
-      String topCategory = '—';
-      double topCategoryAmount = 0;
-      if (categoryTotals.isNotEmpty) {
-        var sorted = categoryTotals.entries.toList()
-          ..sort((a, b) => b.value.compareTo(a.value));
-        topCategory = sorted.first.key;
-        topCategoryAmount = sorted.first.value;
-      }
-
-      // Calculate Daily Totals for Bar Chart
-      List<double> dailyTotals = List.filled(7, 0.0);
-      for (var t in weeklyTransactions) {
-        int index = t.date.weekday - 1;
-        if (index >= 0 && index < 7) {
-          dailyTotals[index] += t.amount;
-        }
-      }
-      
-      try {
-        await HomeWidget.renderFlutterWidget(
-          WeeklySummaryHomeWidget(weeklyTotal: weeklyTotal, dailyAverage: weeklyAvg),
-          logicalSize: await getWidgetLogicalSize('widget_weekly_summary', const Size(360, 170)),
-          key: 'widget_weekly_summary_image',
-        );
-        await HomeWidget.saveWidgetData<String>('weekSpent', weeklyTotal.toString());
-        await HomeWidget.saveWidgetData<String>('topCategory', topCategory);
-        await HomeWidget.saveWidgetData<String>('categoryAmount', topCategoryAmount.toString());
-      } catch (e) {
-        if (kDebugMode) print("Error rendering weekly summary widget: $e");
       }
 
       // === Forecast Data ===
@@ -211,12 +234,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
             monthlyBudget: monthlyBudget,
             avgDailySpend: avgDailySpend,
           ),
-          logicalSize: await getWidgetLogicalSize('widget_forecast', const Size(360, 170)),
+          logicalSize: await getWidgetLogicalSize(
+              'widget_forecast', const Size(360, 170)),
           key: 'widget_forecast_image',
         );
-        await HomeWidget.saveWidgetData<String>('projectedSpend', projectedTotal.toString());
-        await HomeWidget.saveWidgetData<String>('monthlyBudget', monthlyBudget.toString());
-        await HomeWidget.saveWidgetData<String>('avgDailySpend', avgDailySpend.toString());
+        await HomeWidget.saveWidgetData<String>(
+            'projectedSpend', projectedTotal.toString());
+        await HomeWidget.saveWidgetData<String>(
+            'monthlyBudget', monthlyBudget.toString());
+        await HomeWidget.saveWidgetData<String>(
+            'avgDailySpend', avgDailySpend.toString());
       } catch (_) {}
 
       // === Habit Breaker Data ===
@@ -224,76 +251,48 @@ class _DashboardScreenState extends State<DashboardScreen> {
         final habitBox = Hive.box<HabitBreaker>('habitBreakers');
         final activeHabits = habitBox.values.where((h) => h.isActive).toList();
 
-        String habitName = "Chưa có thói quen";
+        String habitName = "Chưa có thử thách";
         int streak = 0;
-        String status = "Thêm mới ngay";
+        String status = "Tạo thử thách để bắt đầu";
+        String habitWidgetState = "none";
 
         if (activeHabits.isNotEmpty) {
+          for (final habit in activeHabits) {
+            habit.ensureBackwardCompatibility();
+            habit.advanceStreak();
+          }
+
           activeHabits.sort(
             (a, b) => b.currentStreak.compareTo(a.currentStreak),
           );
           final topHabit = activeHabits.first;
           habitName = topHabit.habitName;
           streak = topHabit.currentStreak;
-
-          status = "Bắt đầu ngay!";
-          if (topHabit.currentStreak > 21) {
-            status = "Tuyệt vời! 🔥";
-          } else if (topHabit.currentStreak > 7) {
-            status = "Giữ vững nhé! 💪";
-          } else if (topHabit.currentStreak > 0) {
-            status = "Khởi đầu tốt! 🌱";
-          }
+          habitWidgetState = topHabit.getWidgetState();
+          status = topHabit.getStatusText();
         }
-        
+
         await HomeWidget.renderFlutterWidget(
-          HabitBreakerHomeWidget(habitName: habitName, streak: streak, status: status),
-          logicalSize: await getWidgetLogicalSize('widget_habit_breaker', const Size(170, 170)),
+          HabitBreakerHomeWidget(
+            habitName: habitName,
+            streak: streak,
+            status: status,
+          ),
+          logicalSize: await getWidgetLogicalSize(
+            'widget_habit_breaker',
+            const Size(340, 170),
+          ),
           key: 'widget_habit_breaker_image',
         );
         await HomeWidget.saveWidgetData<String>('habitName', habitName);
-        await HomeWidget.saveWidgetData<String>('habitStreak', streak.toString());
+        await HomeWidget.saveWidgetData<String>(
+            'habitStreak', streak.toString());
         await HomeWidget.saveWidgetData<String>('habitStatus', status);
+        await HomeWidget.saveWidgetData<String>(
+            'habitWidgetState', habitWidgetState);
       } catch (e) {
         if (kDebugMode) print("Error updating habit widget: $e");
       }
-
-      // === Savings Goal Data ===
-      try {
-        final goalsBox = Hive.box<SavingsGoal>('savingsGoals');
-        final goals = goalsBox.values.toList();
-        String topGoalName = "—";
-        double topGoalCurrent = 0;
-        double topGoalTarget = 0;
-        
-        if (goals.isNotEmpty) {
-          goals.sort((a, b) {
-            final pctA =
-                a.targetAmount > 0 ? a.savedAmount / a.targetAmount : 0;
-            final pctB =
-                b.targetAmount > 0 ? b.savedAmount / b.targetAmount : 0;
-            return pctB.compareTo(pctA);
-          });
-          final topGoal = goals.first;
-          topGoalName = topGoal.name;
-          topGoalCurrent = topGoal.savedAmount;
-          topGoalTarget = topGoal.targetAmount;
-        }
-        
-        await HomeWidget.renderFlutterWidget(
-          SavingsGoalHomeWidget(
-            topGoalName: topGoalName,
-            goalCurrent: topGoalCurrent,
-            goalTarget: topGoalTarget,
-            goalCount: goals.length,
-          ),
-          logicalSize: await getWidgetLogicalSize('widget_savings_goal', const Size(360, 170)),
-          key: 'widget_savings_goal_image',
-        );
-        await HomeWidget.saveWidgetData<String>('topGoalName', topGoalName);
-        await HomeWidget.saveWidgetData<String>('topGoalCurrent', topGoalCurrent.toString());
-        await HomeWidget.saveWidgetData<String>('topGoalTarget', topGoalTarget.toString());
-      } catch (_) {}
 
       // === Quick Add Data ===
       final todayTransactions = allTransactions.where(
@@ -304,104 +303,39 @@ class _DashboardScreenState extends State<DashboardScreen> {
       );
       try {
         await HomeWidget.renderFlutterWidget(
-          QuickAddHomeWidget(todaySpent: todaySpent, txCount: todayTransactions.length),
-          logicalSize: await getWidgetLogicalSize('widget_quick_add', const Size(170, 170)),
+          QuickAddHomeWidget(
+              todaySpent: todaySpent, txCount: todayTransactions.length),
+          logicalSize: await getWidgetLogicalSize(
+              'widget_quick_add', const Size(170, 170)),
           key: 'widget_quick_add_image',
         );
-        await HomeWidget.saveWidgetData<String>('quickAddTodaySpent', todaySpent.toString());
-        await HomeWidget.saveWidgetData<String>('quickAddTxCount', todayTransactions.length.toString());
+        await HomeWidget.saveWidgetData<String>(
+            'quickAddTodaySpent', todaySpent.toString());
+        await HomeWidget.saveWidgetData<String>(
+            'quickAddTxCount', todayTransactions.length.toString());
       } catch (_) {}
 
-      // === Recurring Data ===
-      try {
-        final recurringBox =
-            Hive.box<RecurringTransaction>('recurringTransactions');
-        final items = recurringBox.values.toList();
-
-        String recurringTitle = "Chưa có";
-        double recurringAmount = 0.0;
-        int minDays = 0;
-
-        if (items.isNotEmpty) {
-          minDays = 9999;
-          RecurringTransaction? nextItem;
-
-          for (var item in items) {
-            DateTime nextDue;
-            if (item.frequency == RecurringFrequency.yearly) {
-              nextDue =
-                  DateTime(now.year, item.monthOfYear ?? 1, item.dayOfMonth);
-              if (nextDue.isBefore(DateTime(now.year, now.month, now.day))) {
-                nextDue = DateTime(
-                    now.year + 1, item.monthOfYear ?? 1, item.dayOfMonth);
-              }
-            } else {
-              nextDue = DateTime(now.year, now.month, item.dayOfMonth);
-              if (nextDue.isBefore(DateTime(now.year, now.month, now.day))) {
-                // If the day has already passed this month, the next due is next month
-                int nextMonth = now.month + 1;
-                int nextYear = now.year;
-                if (nextMonth > 12) {
-                  nextMonth = 1;
-                  nextYear++;
-                }
-                nextDue = DateTime(nextYear, nextMonth, item.dayOfMonth);
-              }
-            }
-
-            int diffDays = nextDue
-                .difference(DateTime(now.year, now.month, now.day))
-                .inDays;
-            if (diffDays >= 0 && diffDays < minDays) {
-              minDays = diffDays;
-              nextItem = item;
-            }
-          }
-
-          if (nextItem != null) {
-            recurringTitle = nextItem.title;
-            recurringAmount = nextItem.amount;
-          } else {
-            minDays = 0;
-          }
-        }
-        
-        await HomeWidget.renderFlutterWidget(
-          RecurringHomeWidget(
-            title: recurringTitle,
-            amount: recurringAmount,
-            daysUntilDue: minDays,
-          ),
-          logicalSize: await getWidgetLogicalSize('widget_recurring', const Size(360, 170)),
-          key: 'widget_recurring_image',
-        );
-        await HomeWidget.saveWidgetData<String>('recurringTitle', recurringTitle);
-        await HomeWidget.saveWidgetData<String>('recurringAmount', recurringAmount.toString());
-        await HomeWidget.saveWidgetData<String>('recurringDays', minDays.toString());
-      } catch (e) {
-        if (kDebugMode) print("Error updating recurring widget: $e");
-      }
-
-      // Update all 6 widgets
-      // Update all 6 widgets
+      // Update all widgets
       await HomeWidget.updateWidget(
-          name: 'DailyBalanceWidgetReceiver', androidName: 'DailyBalanceWidgetReceiver',
+          name: 'DailyBalanceWidgetReceiver',
+          qualifiedAndroidName:
+              'com.therize.fmanager.glance.DailyBalanceWidgetReceiver',
           iOSName: 'DailyBalanceWidget');
       await HomeWidget.updateWidget(
-          name: 'WeeklySummaryWidgetReceiver', androidName: 'WeeklySummaryWidgetReceiver',
-          iOSName: 'WeeklySummaryWidget');
+          name: 'ForecastWidgetReceiver',
+          qualifiedAndroidName:
+              'com.therize.fmanager.glance.ForecastWidgetReceiver',
+          iOSName: 'ForecastWidget');
       await HomeWidget.updateWidget(
-          name: 'ForecastWidgetReceiver', androidName: 'ForecastWidgetReceiver', iOSName: 'ForecastWidget');
+          name: 'QuickAddWidgetReceiver',
+          qualifiedAndroidName:
+              'com.therize.fmanager.glance.QuickAddWidgetReceiver',
+          iOSName: 'QuickAddWidget');
       await HomeWidget.updateWidget(
-          name: 'SavingsGoalWidgetReceiver', androidName: 'SavingsGoalWidgetReceiver',
-          iOSName: 'SavingsGoalWidget');
-      await HomeWidget.updateWidget(
-          name: 'QuickAddWidgetReceiver', androidName: 'QuickAddWidgetReceiver', iOSName: 'QuickAddWidget');
-      await HomeWidget.updateWidget(
-          name: 'HabitBreakerWidgetReceiver', androidName: 'HabitBreakerWidgetReceiver',
+          name: 'HabitBreakerWidgetReceiver',
+          qualifiedAndroidName:
+              'com.therize.fmanager.glance.HabitBreakerWidgetReceiver',
           iOSName: 'HabitBreakerWidget');
-      await HomeWidget.updateWidget(
-          name: 'RecurringWidgetReceiver', androidName: 'RecurringWidgetReceiver', iOSName: 'RecurringWidget');
     } catch (e) {
       if (kDebugMode) {
         print('Error updating home widget: $e');
@@ -416,7 +350,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   bool get _isToday {
-    final now = DateTime.now();
+    final now = AppTimeService.instance.now();
     return _selectedDate.year == now.year &&
         _selectedDate.month == now.month &&
         _selectedDate.day == now.day;
@@ -456,14 +390,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
         builder: (context) => SettingsScreen(currentSalary: _monthlySalary),
       ),
     );
+    _selectedDate = AppTimeService.instance.now();
+    _loadSettings();
     if (result != null) {
-      final now = DateTime.now();
+      final now = AppTimeService.instance.now();
       final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
       setState(() {
         _monthlySalary = result;
-        _dailyLimit = result / daysInMonth;
+        _baseDailyLimit = daysInMonth > 0 ? result / daysInMonth : result;
+        _dailyLimit = _baseDailyLimit; // no rollover yet since budget was just changed
       });
       _updateHomeWidget();
+      NotificationService().scheduleAllSmartNotifications();
     }
   }
 
@@ -588,9 +526,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
 
             // --- 2. Dashboard Cards (Card Flow) ---
+            // Pass _baseDailyLimit so cards that compute rollover internally
+            // don't double-count the already-adjusted _dailyLimit.
             SliverToBoxAdapter(
               child: DashboardStack(
-                dailyLimit: _dailyLimit,
+                dailyLimit: _baseDailyLimit,
                 monthlySalary: _monthlySalary,
                 selectedDate: _selectedDate,
               ),
@@ -634,7 +574,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       SizedBox(
                         height: 200,
                         child: WeeklyChartWidget(
-                          dailyLimit: _dailyLimit,
+                          dailyLimit: _baseDailyLimit,
                           selectedDate: _selectedDate,
                         ),
                       ),
@@ -650,13 +590,41 @@ class _DashboardScreenState extends State<DashboardScreen> {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Text(
-                  'Giao dịch gần đây',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).textTheme.titleLarge?.color,
-                  ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Giao dịch gần đây',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).textTheme.titleLarge?.color,
+                      ),
+                    ),
+                    // Magic Clean Button
+                    ValueListenableBuilder(
+                      valueListenable:
+                          Hive.box<Transaction>('transactions').listenable(),
+                      builder: (context, box, _) {
+                        final messyCount = box.values
+                            .where((t) => t.category == 'Khác')
+                            .length;
+                        if (messyCount == 0) return const SizedBox.shrink();
+
+                        return ActionChip(
+                          avatar: const Icon(Icons.auto_awesome,
+                              color: Colors.white, size: 16),
+                          label: Text('Dọn $messyCount mục',
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold)),
+                          backgroundColor: Colors.purple,
+                          side: BorderSide.none,
+                          onPressed: () => _showMagicCleanSheet(context),
+                        );
+                      },
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -746,13 +714,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             );
             if (result != null && result is HabitBreaker) {
-              result.resetStreak();
-              if (mounted) {
-                _showHabitBrokenDialog(result);
-              }
+              await _handleMatchedHabitRelapse(result);
+            } else {
+              _updateHomeWidget();
             }
-            // FORCE update iOS/Android homescreen widgets whenever we return
-            _updateHomeWidget();
           },
           backgroundColor: AppTheme.softPurple,
           foregroundColor: Colors.white,
@@ -792,15 +757,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       onDismissed: (direction) {
         transaction.delete();
         _updateHomeWidget(); // Update widgets after deletion
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Đã xóa giao dịch'),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-        );
+        NotificationService().scheduleAllSmartNotifications();
+        AppToast.show(context, 'Đã xóa giao dịch');
       },
       child: Container(
         decoration: BoxDecoration(
@@ -929,169 +887,189 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  void _showHabitBrokenDialog(HabitBreaker habit) {
-    showDialog(
+  Future<void> _showMagicCleanSheet(BuildContext context) async {
+    final box = Hive.box<Transaction>('transactions');
+    final messyTxs = box.values.where((t) => t.category == 'Khác').toList();
+    if (messyTxs.isEmpty) return;
+
+    showModalBottomSheet(
       context: context,
-      barrierDismissible: false,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        child: TweenAnimationBuilder<double>(
-          tween: Tween(begin: 0.8, end: 1.0),
-          duration: const Duration(milliseconds: 600),
-          curve: Curves.elasticOut,
-          builder: (context, value, child) {
-            return Transform.scale(scale: value, child: child);
-          },
-          child: Container(
-            padding: const EdgeInsets.all(24),
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => _MagicCleanSheet(messyTxs: messyTxs, txBox: box),
+    );
+  }
+}
+
+class _MagicCleanSheet extends StatefulWidget {
+  final List<Transaction> messyTxs;
+  final Box<Transaction> txBox;
+
+  const _MagicCleanSheet({required this.messyTxs, required this.txBox});
+
+  @override
+  State<_MagicCleanSheet> createState() => _MagicCleanSheetState();
+}
+
+class _MagicCleanSheetState extends State<_MagicCleanSheet> {
+  bool _isLoading = true;
+  Map<String, String>? _suggestions;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchSuggestions();
+  }
+
+  void _fetchSuggestions() async {
+    final ai = GeminiChatService();
+    final results = await ai.batchCategorizeTransactions(widget.messyTxs);
+    if (mounted) {
+      setState(() {
+        _suggestions = results;
+        // Filter out items that AI still thinks are 'Khác'
+        if (_suggestions != null) {
+          _suggestions!.removeWhere((k, v) => v == 'Khác');
+        }
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _applyAll() {
+    if (_suggestions == null || _suggestions!.isEmpty) return;
+
+    for (var tx in widget.messyTxs) {
+      if (_suggestions!.containsKey(tx.id)) {
+        final newTx = Transaction(
+          id: tx.id,
+          amount: tx.amount,
+          category: _suggestions![tx.id]!,
+          date: tx.date,
+          isOverBudget: tx.isOverBudget,
+          notes: tx.notes,
+          unitPrice: tx.unitPrice,
+          quantity: tx.quantity,
+        );
+        widget.txBox.put(tx.key, newTx);
+      }
+    }
+
+    Navigator.pop(context);
+    AppToast.show(context, '✨ Đã dọn dẹp danh mục thành công!');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 40,
+            height: 4,
+            margin: const EdgeInsets.only(bottom: 20),
             decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
-              borderRadius: BorderRadius.circular(32),
-              border: Border.all(
-                color: const Color(0xFFFF6B6B), // Soft Red
-                width: 4,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFFFF6B6B).withValues(alpha: 0.4),
-                  blurRadius: 20,
-                  spreadRadius: 2,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Image.asset(
-                  'assets/mascots/mascotsad.png',
-                  height: 120, // Appropriately sized sad mascot
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  "OH NO!",
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.w900,
-                    color: const Color(0xFFFF6B6B),
-                    letterSpacing: 2,
-                    shadows: [
-                      Shadow(
-                        color: Colors.black.withValues(alpha: 0.1),
-                        offset: const Offset(2, 2),
-                        blurRadius: 4,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  "Bạn đã phá vỡ chuỗi\n${habit.habitName}!",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).textTheme.bodyLarge?.color,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 16,
-                    horizontal: 20,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).scaffoldBackgroundColor,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Column(
-                        children: [
-                          const Text(
-                            "TRƯỚC ĐÓ",
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.grey,
-                              letterSpacing: 1,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            "${habit.bestStreak}", // Showing best streak or prev streak if tracking
-                            style: const TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.grey,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 24),
-                        child: Icon(
-                          Icons.arrow_forward_rounded,
-                          color: Colors.grey,
-                        ),
-                      ),
-                      Column(
-                        children: [
-                          const Text(
-                            "HIỆN TẠI",
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFFFF6B6B),
-                              letterSpacing: 1,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          const Text(
-                            "0",
-                            style: TextStyle(
-                              fontSize: 32,
-                              fontWeight: FontWeight.w900,
-                              color: Color(0xFFFF6B6B),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 32),
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFF6B6B),
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      shadowColor: const Color(
-                        0xFFFF6B6B,
-                      ).withValues(alpha: 0.5),
-                    ).copyWith(elevation: WidgetStateProperty.all(8)),
-                    child: const Text(
-                      "MÌNH SẼ LÀM LẠI!", // "I will try again!"
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+              color: Colors.grey.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(2),
             ),
           ),
-        ),
+          const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.auto_awesome, color: Colors.purple),
+              SizedBox(width: 8),
+              Text('Magic Clean',
+                  style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.purple)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Text(
+              'AI đang hỗ trợ chuyển đổi các giao dịch "Khác" về đúng danh mục.',
+              textAlign: TextAlign.center),
+          const SizedBox(height: 24),
+          if (_isLoading)
+            const Padding(
+              padding: EdgeInsets.all(40.0),
+              child: CircularProgressIndicator(color: Colors.purple),
+            )
+          else if (_suggestions == null || _suggestions!.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(40.0),
+              child: Text('Không tìm thấy gợi ý nào mới.',
+                  style: TextStyle(color: Colors.grey)),
+            )
+          else
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.4),
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: widget.messyTxs.length,
+                itemBuilder: (context, index) {
+                  final tx = widget.messyTxs[index];
+                  final newCat = _suggestions![tx.id];
+                  if (newCat == null) return const SizedBox.shrink();
+
+                  return ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(tx.notes ?? 'Không có ghi chú',
+                        style: const TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: Text(
+                        '${NumberFormat.currency(locale: 'vi', symbol: '₫', decimalDigits: 0).format(tx.amount)} - ${DateFormat('dd/MM/yyyy').format(tx.date)}'),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('Khác',
+                            style: TextStyle(
+                                decoration: TextDecoration.lineThrough,
+                                color: Colors.grey)),
+                        const SizedBox(width: 8),
+                        const Icon(Icons.arrow_forward_ios,
+                            size: 12, color: Colors.grey),
+                        const SizedBox(width: 8),
+                        Text(newCat,
+                            style: const TextStyle(
+                                color: Colors.green,
+                                fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed:
+                  (_isLoading || _suggestions == null || _suggestions!.isEmpty)
+                      ? null
+                      : _applyAll,
+              icon: const Icon(Icons.done_all, color: Colors.white),
+              label: const Text('Duyệt tất cả',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.purple,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+        ],
       ),
     );
   }

@@ -25,21 +25,26 @@ class WeeklySummaryCard extends StatelessWidget {
         );
 
         DateTime endOfWeek = startOfWeek.add(const Duration(days: 7));
+        
+        // --- Smart Historical Delta Calculation ---
+        DateTime startOfLastWeek = startOfWeek.subtract(const Duration(days: 7));
+        DateTime endOfLastWeek = startOfWeek;
+        
+        double totalWeeklySpend = 0;
+        double totalLastWeeklySpend = 0;
+        final List<Transaction> weeklyTransactions = [];
 
-        // Filter transactions for the week
-        final weeklyTransactions = box.values.where((t) {
-          return t.date.isAfter(
-                startOfWeek.subtract(const Duration(seconds: 1)),
-              ) &&
-              t.date.isBefore(endOfWeek);
-        }).toList();
+        // Single high-performance pass to harvest both current week and last week's deltas
+        for (var t in box.values) {
+          if (t.date.isAfter(startOfWeek.subtract(const Duration(seconds: 1))) && t.date.isBefore(endOfWeek)) {
+            weeklyTransactions.add(t);
+            totalWeeklySpend += t.amount;
+          } else if (t.date.isAfter(startOfLastWeek.subtract(const Duration(seconds: 1))) && t.date.isBefore(endOfLastWeek)) {
+            totalLastWeeklySpend += t.amount;
+          }
+        }
 
-        double totalWeeklySpend = weeklyTransactions.fold(
-          0,
-          (sum, t) => sum + t.amount,
-        );
-
-        // Group by category
+        // Group by category for current week
         Map<String, double> categorySpend = {};
         for (var t in weeklyTransactions) {
           categorySpend[t.category] =
@@ -70,13 +75,45 @@ class WeeklySummaryCard extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'Tuần này',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
+                  Row(
+                    children: [
+                      const Text(
+                        'Tuần này',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      if (totalLastWeeklySpend > 0) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: (totalWeeklySpend <= totalLastWeeklySpend) ? Colors.green.withValues(alpha: 0.1) : Colors.red.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                (totalWeeklySpend <= totalLastWeeklySpend) ? Icons.arrow_downward : Icons.arrow_upward,
+                                size: 12,
+                                color: (totalWeeklySpend <= totalLastWeeklySpend) ? Colors.green : Colors.red,
+                              ),
+                              const SizedBox(width: 2),
+                              Text(
+                                '${((totalWeeklySpend - totalLastWeeklySpend).abs() / totalLastWeeklySpend * 100).toStringAsFixed(0)}%',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: (totalWeeklySpend <= totalLastWeeklySpend) ? Colors.green : Colors.red,
+                                )
+                              )
+                            ]
+                          )
+                        )
+                      ]
+                    ]
                   ),
                   Container(
                     padding: const EdgeInsets.symmetric(

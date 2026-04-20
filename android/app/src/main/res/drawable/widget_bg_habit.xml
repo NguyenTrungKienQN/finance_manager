@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Orange border stroke -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:startColor="#F5C6A0"
+                android:endColor="#E8A0B0"
+                android:angle="0" />
+            <corners android:radius="28dp" />
+        </shape>
+    </item>
+    <!-- Inner fill with warm gradient -->
+    <item android:top="2dp" android:left="2dp" android:right="2dp" android:bottom="2dp">
+        <shape android:shape="rectangle">
+            <gradient
+                android:startColor="#FFF0E6"
+                android:centerColor="#FFEEE8"
+                android:endColor="#FFE4ED"
+                android:angle="0" />
+            <corners android:radius="26dp" />
+        </shape>
+    </item>
+</layer-list>

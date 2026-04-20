@@ -15,6 +15,28 @@ class SavingsOverviewCard extends StatelessWidget {
         final totalSaved = goals.fold(0.0, (sum, g) => sum + g.savedAmount);
         final totalTarget = goals.fold(0.0, (sum, g) => sum + g.targetAmount);
 
+        DateTime? oldestDate;
+        for (var goal in goals) {
+          if (oldestDate == null || goal.createdAt.isBefore(oldestDate)) {
+            oldestDate = goal.createdAt;
+          }
+        }
+        int daysTracking = oldestDate != null
+            ? DateTime.now().difference(oldestDate).inDays + 1
+            : 1;
+        double avgVelocity = totalSaved / daysTracking;
+        double remainingToTarget = totalTarget - totalSaved;
+
+        String projectedCompletionText =
+            remainingToTarget > 0 ? "Chưa có dự báo" : "Sẵn sàng đạt mục tiêu";
+        if (avgVelocity > 0 && remainingToTarget > 0) {
+          int expectedDays = (remainingToTarget / avgVelocity).ceil();
+          DateTime projectedDate =
+              DateTime.now().add(Duration(days: expectedDays));
+          projectedCompletionText =
+              "Dự kiến đạt vào: ${projectedDate.month}/${projectedDate.year}";
+        }
+
         return Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
@@ -118,22 +140,37 @@ class SavingsOverviewCard extends StatelessWidget {
                   minHeight: 4,
                 ),
               ),
+
               const SizedBox(height: 6),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Tổng tiết kiệm',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.6),
-                      fontSize: 11,
-                    ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Tổng tiết kiệm',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.6),
+                          fontSize: 11,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        projectedCompletionText,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.45),
+                          fontSize: 10,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ],
                   ),
                   Text(
                     '${(totalTarget > 0 ? (totalSaved / totalTarget * 100) : 0).toStringAsFixed(0)}%',
                     style: const TextStyle(
                       color: Colors.amber,
-                      fontSize: 12,
+                      fontSize: 16, // Increase size to match column height naturally
                       fontWeight: FontWeight.bold,
                     ),
                   ),

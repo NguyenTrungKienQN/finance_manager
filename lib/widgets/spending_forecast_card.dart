@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
@@ -27,43 +28,13 @@ class SpendingForecastCard extends StatelessWidget {
           return t.date.year == now.year && t.date.month == now.month;
         }).toList();
 
-        // Calculate start date for average calculation
-        int startDay = 1;
-
-        final allTransactions = box.values.toList();
-
-        if (allTransactions.isEmpty) {
-          // New user with no data at all: Start tracking from today
-          startDay = now.day;
-        } else {
-          // Find the very first transaction ever
-          final firstEver = allTransactions
-              .map((t) => t.date)
-              .reduce((a, b) => a.isBefore(b) ? a : b);
-
-          if (firstEver.year < now.year ||
-              (firstEver.year == now.year && firstEver.month < now.month)) {
-            // Started in previous months
-            startDay = 1;
-          } else {
-            // Started this month
-            startDay = firstEver.day;
-          }
-        }
-
-        // Calculate days passed since startDay (inclusive)
-        int daysPassed = now.day - startDay + 1;
-
-        // Ensure at least 1 day to avoid division by zero
-        if (daysPassed < 1) daysPassed = 1;
-
         // Check if there are any transactions this month
         if (monthlyTransactions.isEmpty) {
           return Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [Color(0xFF2196F3), Color(0xFF03A9F4)], // Blue gradient
+                colors: [Color(0xFF2196F3), Color(0xFF03A9F4)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -85,7 +56,7 @@ class SpendingForecastCard extends StatelessWidget {
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
-                    Icons.analytics_outlined, // Changed icon
+                    Icons.analytics_outlined,
                     color: Colors.white,
                     size: 28,
                   ),
@@ -96,7 +67,7 @@ class SpendingForecastCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'Chưa có dữ liệu tháng này', // "No data this month"
+                        'Chưa có dữ liệu tháng này',
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 18,
@@ -105,7 +76,7 @@ class SpendingForecastCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Hãy thêm giao dịch để xem dự báo chi tiêu.', // "Add transaction to see forecast"
+                        'Hãy thêm giao dịch để xem dự báo chi tiêu.',
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.8),
                           fontSize: 14,
@@ -119,21 +90,41 @@ class SpendingForecastCard extends StatelessWidget {
           );
         }
 
-        double totalSpent = monthlyTransactions.fold(
-          0,
-          (sum, t) => sum + t.amount,
-        );
+        int daysPassed = now.day;
+        if (daysPassed < 1) daysPassed = 1;
 
-        double avgDailySpend = totalSpent / daysPassed;
+        // Smart Weighted Recency Forecasting
+        double totalSpent = 0;
+        double anomalyThreshold = monthlySalary * 0.15; // 15% threshold
+        
+        // Map daily expenditures
+        Map<int, double> dailySpends = {};
 
-        // Days remaining in the month (after today)
+        for (var t in monthlyTransactions) {
+          totalSpent += t.amount;
+          if (t.amount <= anomalyThreshold) {
+            dailySpends[t.date.day] = (dailySpends[t.date.day] ?? 0) + t.amount;
+          }
+        }
+
+        // Apply Exponential Decay Weighting
+        // More recent days hold exponentially massive influence over the daily average projection.
+        double weightedSum = 0;
+        double totalWeight = 0;
+        
+        for (int day = 1; day <= daysPassed; day++) {
+           int daysAgo = now.day - day;
+           double weight = math.exp(-0.1 * daysAgo); // 10% memory decay per day
+           double spendOnDay = dailySpends[day] ?? 0.0;
+           
+           weightedSum += spendOnDay * weight;
+           totalWeight += weight;
+        }
+
+        double avgDailySpend = totalWeight > 0 ? weightedSum / totalWeight : 0;
         int daysRemaining = daysInMonth - now.day;
-
-        // Projected = Total Spent + (Average * Remaining Days)
         double projectedTotal = totalSpent + (avgDailySpend * daysRemaining);
-
         double monthlyBudget = monthlySalary;
-
         bool isDanger = projectedTotal > monthlyBudget;
 
         return Container(

@@ -36,8 +36,14 @@ class MonthlySummaryCard extends StatelessWidget {
             : 0.0;
         final dayPct = now.day / daysInMonth;
 
-        // Spending pace: if budgetPct > dayPct, spending too fast
-        final bool isFast = budgetPct > dayPct;
+        // Smart Pacing Buffer Curve
+        // Grants a 15% tapering allowance at the beginning of the month for fixed bills (rent, utilities)
+        // This decays to 0% linearly as the month progresses so it remains strictly accurate by day 30.
+        final double curveAllowance = 0.15 * (1.0 - dayPct); 
+        final double safeThreshold = dayPct + curveAllowance;
+        
+        // Dynamic pace flag: Only warns if spending violently escapes the buffered threshold
+        final bool isFast = budgetPct > safeThreshold;
 
         final fmt = NumberFormat.currency(
           locale: 'vi',

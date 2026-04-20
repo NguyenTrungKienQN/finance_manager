@@ -36,6 +36,21 @@
 		<string>Ứng dụng cần quyền lưu ảnh</string>
 		<key>NSPhotoLibraryUsageDescription</key>
 		<string>Ứng dụng cần quyền truy cập thư viện ảnh để chọn hóa đơn</string>
+		<key>NSMicrophoneUsageDescription</key>
+		<string>Ứng dụng cần micro để nhập giao dịch bằng giọng nói</string>
+		<key>NSSpeechRecognitionUsageDescription</key>
+		<string>Ứng dụng cần nhận dạng giọng nói để chuyển lời nói thành văn bản giao dịch</string>
+		<key>CFBundleURLTypes</key>
+		<array>
+			<dict>
+				<key>CFBundleTypeRole</key>
+				<string>Editor</string>
+				<key>CFBundleURLSchemes</key>
+				<array>
+					<string>fmanager</string>
+				</array>
+			</dict>
+		</array>
 		<key>UIApplicationSupportsIndirectInputEvents</key>
 		<true/>
 		<key>UILaunchStoryboardName</key>
