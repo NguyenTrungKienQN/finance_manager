@@ -3,6 +3,7 @@ import '../services/app_time_service.dart';
 import 'package:finance_manager/models/transaction_model.dart';
 import 'package:finance_manager/models/spending_category_model.dart';
 import 'package:finance_manager/services/category_registry.dart';
+import 'package:finance_manager/services/income_service.dart';
 
 part 'settings_model.g.dart';
 
@@ -121,23 +122,28 @@ class AppSettings extends HiveObject {
     final daysInMonth = DateTime(date.year, date.month + 1, 0).day;
     if (daysInMonth <= 0) return 0;
 
+    final totalIncome = totalIncomeForDate(date);
+    final monthlyFixed = CategoryRegistry.instance.totalMonthlyFixed();
+    
     if (!isTrackingMonth(date)) {
-      final monthlyFixed = CategoryRegistry.instance.totalMonthlyFixed();
-      final availableSalary = monthlySalary - monthlyFixed;
-      return availableSalary / daysInMonth;
+      final availableSalary = totalIncome - monthlyFixed;
+      return (availableSalary / daysInMonth).roundToDouble();
     }
 
     final remainingDays = daysInMonth - trackingStartDate!.day + 1;
     if (remainingDays <= 0) return 0;
 
-    final monthlyFixed = CategoryRegistry.instance.totalMonthlyFixed();
-    final remainingBudgetAtSetup = monthlySalary - monthlyFixed;
+    final remainingBudgetAtSetup = totalIncome - monthlyFixed;
     
     final normalizedRemainingBudget = remainingBudgetAtSetup < 0
         ? 0.0
         : remainingBudgetAtSetup;
 
-    return normalizedRemainingBudget / remainingDays;
+    return (normalizedRemainingBudget / remainingDays).roundToDouble();
+  }
+
+  double totalIncomeForDate(DateTime date) {
+    return IncomeService.instance.getTotalIncome(date);
   }
 
   double calculateDailyLimitForDate(
@@ -174,7 +180,7 @@ class AppSettings extends HiveObject {
     final dynamicDailyLimit =
         baseDailyLimit + accruedBudget - monthSpentBeforeDate;
 
-    return dynamicDailyLimit < 0 ? 0 : dynamicDailyLimit;
+    return dynamicDailyLimit < 0 ? 0 : dynamicDailyLimit.roundToDouble();
   }
 
   /// Auto-calculate today's daily limit dynamically with rollover.

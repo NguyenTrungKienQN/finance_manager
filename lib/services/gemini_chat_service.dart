@@ -18,7 +18,7 @@ class GeminiChatService {
 
   final List<Content> _history = [];
   ChatPersona _currentPersona = ChatPersona.expert;
-  String _currentModel = 'gemini-2.5-flash'; 
+  String _currentModel = 'gemini-2.0-flash'; 
   DateTime? _lastContextUpdate;
   String? _lastContext;
 
@@ -106,11 +106,8 @@ class GeminiChatService {
       return result;
     } catch (_) {
       return [
-        'gemini-3.1-pro-preview',
-        'gemini-3-flash-preview',
-        'gemini-2.5-flash',
-        'gemini-2.5-pro',
         'gemini-2.0-flash',
+        'gemini-2.0-flash-lite-preview-02-05',
       ];
     }
   }
@@ -273,7 +270,7 @@ class GeminiChatService {
     // Stage 1: Try Fast Lite model without search
     final liteResult = await _queryModel(
       text,
-      modelName: 'gemini-2.5-flash-lite',
+      modelName: 'gemini-2.0-flash',
       systemPrompt: "Bạn là trợ lý dữ liệu tài chính.\n"
           "NHIỆM VỤ: Trích xuất số tiền và phân loại danh mục.\n"
           "- Các danh mục hợp lệ duy nhất: ${CategoryRegistry.instance.categoryNames().map((n) => "'$n'").join(', ')}.\n"
@@ -290,7 +287,7 @@ class GeminiChatService {
     debugPrint('[AI Parser] Falling back to Tier 2 (Flash + Search)');
     return _queryModel(
       text,
-      modelName: 'gemini-2.5-flash',
+      modelName: 'gemini-2.0-flash',
       useSearch: true,
       systemPrompt: "Bạn là trợ lý dữ liệu tài chính.\n"
           "NHIỆM VỤ: Trích xuất số tiền và phân loại danh mục.\n"
@@ -305,7 +302,7 @@ class GeminiChatService {
   Future<Map<String, dynamic>?> parseReceiptText(String rawText) async {
     return _queryModel(
       rawText,
-      modelName: 'gemini-2.5-flash-lite',
+      modelName: 'gemini-2.0-flash',
       systemPrompt: "Bạn là trợ lý phân tích hóa đơn.\n"
           "NHIỆM VỤ: Trích xuất số tiền tổng, danh mục và tóm tắt ghi chú từ văn bản OCR của hóa đơn.\n"
           "- Nếu hóa đơn có nhiều mặt hàng thuộc các danh mục khác nhau, hãy đặt category là 'Khác'.\n"
@@ -319,13 +316,17 @@ class GeminiChatService {
   /// Evaluates if a transaction breaks a habit using AI
   Future<bool> doesTransactionBreakHabit(String habitName, String category, String note) async {
     try {
+      final whitelist = Hive.box<String>('habitWhitelist').values.toList();
+      final whitelistStr = whitelist.join(', ');
+
       final apiKey = _getApiKey();
       final model = GenerativeModel(
-        model: 'gemini-2.5-flash',
+        model: 'gemini-2.0-flash',
         apiKey: apiKey,
         systemInstruction: Content.system(
           "Bạn là trợ lý AI phân tích thói quen chi tiêu. "
           "Nhiệm vụ của bạn là xác định xem một khoản chi tiêu có vi phạm thói quen đang cố bỏ của người dùng hay không.\n"
+          "DANH SÁCH TRẮNG (WHITELIST): $whitelistStr. Các khoản này là thiết yếu, KHÔNG bao giờ bị coi là vi phạm.\n"
           "Trả lời CHỈ BẰNG 1 TỪ duy nhất: 'YES' nếu vi phạm, hoặc 'NO' nếu không vi phạm."
         ),
       );
@@ -348,7 +349,7 @@ class GeminiChatService {
     try {
       final apiKey = _getApiKey();
       final model = GenerativeModel(
-        model: 'gemini-2.5-flash',
+        model: 'gemini-2.0-flash',
         apiKey: apiKey,
         systemInstruction: Content.system(
           "Bạn là chuyên gia dọn dẹp dữ liệu tài chính.\n"
@@ -405,7 +406,7 @@ class GeminiChatService {
       }
 
       final model = GenerativeModel(
-        model: 'gemini-2.5-flash',
+        model: 'gemini-2.0-flash',
         apiKey: apiKey,
         systemInstruction: Content.system(
           "Bạn là $personaDescription.\n"
@@ -465,16 +466,23 @@ class GeminiChatService {
         "category": tx.category
       }).toList();
 
+      final whitelist = Hive.box<String>('habitWhitelist').values.toList();
+      final whitelistStr = whitelist.join(', ');
+
       final apiKey = _getApiKey();
       final model = GenerativeModel(
-        model: 'gemini-2.5-flash-lite',
+        model: 'gemini-2.0-flash',
         apiKey: apiKey,
         systemInstruction: Content.system(
           "Bạn là chuyên gia phân tích hành vi tiêu dùng.\n"
           "NHIỆM VỤ: Hãy tìm ra thói quen chi tiêu lặp lại nhiều lần (>= 3 lần) trong mảng dữ liệu.\n"
-          "Mẹo: Nhóm các giao dịch giống nhau (ví dụ: 'cafe 30k', 'cafe 45k' -> chung nhóm 'Cafe'). Nếu xuất hiện từ 3 lần trở lên, coi là thói quen xấu!\n"
-          "TRẢ VỀ DUY NHẤT một chuỗi định dạng JSON: {\"habit_name\": \"Tên thói quen (ngắn gọn)\", \"suggested_duration\": 7, \"reason\": \"1 câu lý do\"}\n"
-          "CHỈ trả về 'null' nếu THẬT SỰ không có từ khóa nào lặp lại >= 3 lần."
+          "DANH SÁCH TRẮNG (WHITELIST): $whitelistStr. BỎ QUA hoàn toàn các giao dịch chứa từ khóa này.\n"
+          "QUY TẮC ĐỘ DÀI (Duration):\n"
+          "- Phân tích MỨC ĐỘ TẦN SUẤT và SỐ TIỀN.\n"
+          "- Nếu thói quen ít nghiêm trọng (ví dụ: trà đá vỉa hè): đề xuất 3-7 ngày.\n"
+          "- Nếu thói quen tốn kém hoặc hại sức khỏe (ví dụ: thuốc lá, nhậu nhẹt): đề xuất 14-30 ngày.\n"
+          "TRẢ VỀ JSON: {\"habit_name\": \"Tên thói quen\", \"suggested_duration\": số_ngày, \"reason\": \"lý do ngắn\"}\n"
+          "CHỈ trả về 'null' nếu không tìm thấy thói quen xấu nào ngoài whitelist."
         ),
       );
 
@@ -539,7 +547,7 @@ class GeminiChatService {
     return {
       "habit_name": habitName,
       "suggested_duration": 7,
-      "reason": "Hệ thống phát hiện bạn đã chi tiền cho khoản này $maxFreq lần trong tuần qua. Hãy thử sức từ bỏ nó nhé!"
+      "reason": "Hệ thống phát hiện bạn đã chi tiền cho \"$habitName\" $maxFreq lần gần đây. Bạn có muốn bắt đầu thử thách kiểm soát thói quen này không?"
     };
   }
 
@@ -548,11 +556,12 @@ class GeminiChatService {
     required double totalAmount,
     required String description,
     List<String>? existingPeople,
+    Map<String, double>? preFilledAmounts,
   }) async {
-    debugPrint('[AI Split] Starting... total=$totalAmount, desc="${description.length > 50 ? description.substring(0, 50) : description}", people=$existingPeople');
+    debugPrint('[AI Split] Starting... total=$totalAmount, desc="${description.length > 50 ? description.substring(0, 50) : description}", people=$existingPeople, preFilled=$preFilledAmounts');
     
-    // If we already have people selected, try local split first for instant response
-    if (existingPeople != null && existingPeople.isNotEmpty && description.trim().isEmpty) {
+    // If we already have people selected, try local split first for instant response (unless AI is specifically requested)
+    if (existingPeople != null && existingPeople.isNotEmpty && description.trim().isEmpty && (preFilledAmounts == null || preFilledAmounts.isEmpty)) {
       debugPrint('[AI Split] No description, using local equal split');
       return _localEqualSplit(totalAmount, existingPeople);
     }
@@ -560,26 +569,40 @@ class GeminiChatService {
     try {
       final apiKey = _getApiKey();
       
-      final peopleContext = existingPeople != null && existingPeople.isNotEmpty
+      String peopleContext = existingPeople != null && existingPeople.isNotEmpty
           ? "Danh sách người: ${existingPeople.join(', ')}."
-          : "Tìm tên người trong văn bản. Nếu không rõ, giả sử 2 người.";
+          : "Tìm tên người trong văn bản hóa đơn.";
+
+      if (preFilledAmounts != null && preFilledAmounts.isNotEmpty) {
+        final preFilledJson = jsonEncode(preFilledAmounts);
+        peopleContext += "\n[DỮ LIỆU CỐ ĐỊNH]: $preFilledJson.\n"
+            "YÊU CẦU BẮT BUỘC:\n"
+            "1. Giữ nguyên số tiền cho những người có tên trong danh sách CỐ ĐỊNH trên. TUYỆT ĐỐI không được thay đổi dù chỉ 1 đồng.\n"
+            "2. Khấu trừ tổng tiền của những người này ra khỏi tổng hóa đơn ($totalAmount).\n"
+            "3. Phần tiền còn lại mới được chia cho những người khác dựa trên phân tích hóa đơn.";
+      }
 
       final model = GenerativeModel(
-        model: 'gemini-2.0-flash',
+        model: 'gemini-2.0-flash', // Using a more powerful model for complex logic
         apiKey: apiKey,
         systemInstruction: Content.system(
-          "Trợ lý chia tiền. $peopleContext\n"
-          "Chia theo chi tiết hóa đơn nếu có, không thì chia đều. TỔNG phải = $totalAmount.\n"
-          "CHỈ trả JSON: {\"people\": [\"tên1\", \"tên2\"], \"splits\": {\"tên1\": số, \"tên2\": số}, \"reasoning\": \"lý do ngắn\"}"
+          "Bạn là chuyên gia phân tích hóa đơn và chia nợ.\n"
+          "NHIỆM VỤ: Chia tiền hóa đơn cho các cá nhân một cách chính xác.\n"
+          "$peopleContext\n"
+          "QUY TẮC CỐT LÕI:\n"
+          "1. TỔNG CỘNG tất cả các phần chia (bao gồm cả phần cố định và phần bạn tự tính) PHẢI CHÍNH XÁC BẰNG $totalAmount.\n"
+          "2. KHÔNG CHIA ĐỀU (Equal Split) một cách máy móc. Nếu không có bằng chứng ai nợ món gì, hãy ưu tiên để họ là 0 hoặc gán cho người có khả năng nhất thay vì chia trung bình.\n"
+          "3. Nếu người dùng đã khóa số tiền cho ai đó, bạn phải đưa họ vào kết quả với đúng số tiền đó.\n"
+          "4. Trả về kết quả dưới dạng JSON với cấu trúc sau:\n"
+          "{\"people\": [\"tên1\", \"tên2\"], \"splits\": {\"tên1\": số, \"tên2\": số}, \"reasoning\": \"lý do ngắn gọn\"}"
         ),
       );
 
       final prompt = "Tổng hóa đơn: $totalAmount\nNội dung/Hóa đơn: $description";
       debugPrint('[AI Split] Calling API...');
       
-      // 10-second timeout to prevent infinite hang
       final response = await model.generateContent([Content.text(prompt)])
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 15));
       
       final rawText = response.text?.trim() ?? '';
       debugPrint('[AI Split] Raw response: $rawText');
@@ -593,10 +616,6 @@ class GeminiChatService {
       return jsonDecode(jsonString) as Map<String, dynamic>;
     } catch (e) {
       debugPrint('[AI Split] ERROR: $e');
-      // Fallback: equal split among existing people
-      if (existingPeople != null && existingPeople.isNotEmpty) {
-        return _localEqualSplit(totalAmount, existingPeople);
-      }
       return null;
     }
   }

@@ -25,6 +25,9 @@ import 'theme/app_theme.dart'; // Correctly placed import
 import 'services/migration_service.dart';
 import 'models/spending_category_model.dart';
 import 'services/category_registry.dart';
+import 'models/income_record_model.dart';
+import 'services/income_service.dart';
+
 
 // Modern color palette
 // AppColors class removed as we use AppTheme
@@ -47,6 +50,8 @@ void main() async {
     Hive.registerAdapter(HabitBreakerAdapter());
     Hive.registerAdapter(SpendingCategoryAdapter());
     Hive.registerAdapter(BudgetPeriodAdapter());
+    Hive.registerAdapter(IncomeRecordAdapter());
+
 
     // Init Notifications and Open boxes in parallel
     await Future.wait([
@@ -59,14 +64,29 @@ void main() async {
       Hive.openBox<DebtRecord>('debtRecords'),
       Hive.openBox<HabitBreaker>('habitBreakers'),
       Hive.openBox<SpendingCategory>('categories'),
+      Hive.openBox<IncomeRecord>('incomes'),
       Hive.openBox('currency_data'),
       Hive.openBox('notification_log'),
+      Hive.openBox<String>('habitWhitelist'),
     ]);
+
+    // Initialize Whitelist with defaults if empty
+    final whitelistBox = Hive.box<String>('habitWhitelist');
+    if (whitelistBox.isEmpty) {
+      await whitelistBox.addAll([
+        'Cơm', 'Phở', 'Bún', 'Xăng', 'Điện', 'Nước', 
+        'Chợ', 'Siêu thị', 'Tạp hóa', 'Gửi xe'
+      ]);
+    }
+
 
     hiveInitialized = true;
 
-    // Init Category Registry
-    await CategoryRegistry.instance.initialize();
+    // Init Category Registry and Income Service
+    await Future.wait([
+      CategoryRegistry.instance.initialize(),
+      IncomeService.instance.initialize(),
+    ]);
 
     // Run data migrations after boxes are open
     await MigrationService.runAllMigrations();

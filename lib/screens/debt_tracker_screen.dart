@@ -242,23 +242,60 @@ class _SplitBottomSheetState extends State<_SplitBottomSheet> {
     });
   }
 
-  void _applySplitResult(Map<String, dynamic> result) {
+  void _applySplitResult(Map<String, dynamic> result, Map<String, double> preFilled) {
     setState(() {
+      final List<dynamic> aiPeople = result['people'] ?? [];
+      final Map<String, dynamic> aiSplits = result['splits'] ?? {};
+      final total = _totalAmount;
+
+      // 1. Normalize names for matching
+      final normalizedPreFilled = preFilled.map((key, value) => MapEntry(key.trim().toLowerCase(), value));
+      final lockedTotal = preFilled.values.fold(0.0, (sum, val) => sum + val);
+      final remainingToSplit = (total - lockedTotal).clamp(0.0, total);
+
+      // 2. Identify who is NOT locked
+      final unlockedPeopleResults = <String, double>{};
+      double aiUnlockedSum = 0;
+
+      // Include all people suggested by AI that are NOT in the pre-filled list
+      for (var p in aiPeople) {
+        final name = p.toString().trim();
+        final normName = name.toLowerCase();
+        if (!normalizedPreFilled.containsKey(normName)) {
+          final amt = (aiSplits[name] ?? 0).toDouble();
+          unlockedPeopleResults[name] = amt;
+          aiUnlockedSum += amt;
+        }
+      }
+
+      // 3. Clear and Rebuild
       for (var c in _nameControllers) { c.dispose(); }
       for (var c in _splitAmountControllers) { c.dispose(); }
       _nameControllers.clear();
       _splitAmountControllers.clear();
 
-      final List<dynamic> people = result['people'] ?? [];
-      final Map<String, dynamic> splits = result['splits'] ?? {};
+      // 4. Add Locked People first
+      preFilled.forEach((name, amount) {
+        _nameControllers.add(TextEditingController(text: name));
+        _splitAmountControllers.add(TextEditingController(text: amount.toStringAsFixed(0)));
+      });
 
-      for (var person in people) {
-        final n = person.toString();
-        final amt = (splits[n] ?? 0).toDouble();
-        _nameControllers.add(TextEditingController(text: n));
-        _splitAmountControllers.add(TextEditingController(text: amt.toStringAsFixed(0)));
+      // 5. Add Unlocked People with redistributed amounts
+      if (unlockedPeopleResults.isNotEmpty) {
+        unlockedPeopleResults.forEach((name, aiAmt) {
+          double finalAmt;
+          if (aiUnlockedSum > 0) {
+            finalAmt = (aiAmt / aiUnlockedSum) * remainingToSplit;
+          } else {
+            finalAmt = remainingToSplit / unlockedPeopleResults.length;
+          }
+          _nameControllers.add(TextEditingController(text: name));
+          _splitAmountControllers.add(TextEditingController(text: finalAmt.roundToDouble().toStringAsFixed(0)));
+        });
       }
+
       _isAiSplitting = false;
+      _statusMessage = 'Đã cập nhật theo yêu cầu';
     });
   }
 
@@ -285,6 +322,16 @@ class _SplitBottomSheetState extends State<_SplitBottomSheet> {
       _statusMessage = '';
     });
 
+    final Map<String, double> preFilledAmounts = {};
+    for (int i = 0; i < _nameControllers.length; i++) {
+      final name = _nameControllers[i].text.trim();
+      final amountStr = _splitAmountControllers[i].text.replaceAll(RegExp(r'[,.]'), '');
+      final amount = double.tryParse(amountStr) ?? 0;
+      if (name.isNotEmpty && amount > 0) {
+        preFilledAmounts[name] = amount;
+      }
+    }
+
     final existingPeople = _nameControllers
         .map((c) => c.text).where((t) => t.isNotEmpty).toList();
 
@@ -293,10 +340,11 @@ class _SplitBottomSheetState extends State<_SplitBottomSheet> {
       totalAmount: _totalAmount,
       description: _descController.text,
       existingPeople: existingPeople,
+      preFilledAmounts: preFilledAmounts,
     );
 
     if (result != null && mounted) {
-      _applySplitResult(result);
+      _applySplitResult(result, preFilledAmounts);
     } else if (mounted) {
       // Local fallback
       List<String> detected = _detectPeopleFromText(_descController.text);
@@ -307,14 +355,84 @@ class _SplitBottomSheetState extends State<_SplitBottomSheet> {
         final perPerson = (_totalAmount / detected.length).roundToDouble();
         final splits = <String, dynamic>{};
         for (var p in detected) { splits[p] = perPerson; }
-        _applySplitResult({'people': detected, 'splits': splits});
+        _applySplitResult({'people': detected, 'splits': splits}, preFilledAmounts);
       } else {
         setState(() {
           _isAiSplitting = false;
           _statusMessage = 'Nhập tên người hoặc ghi chú (VD: với Minh và Lan)';
         });
+        // Suggest people if nothing found
+        if (mounted && _nameControllers.every((c) => c.text.isEmpty)) {
+          _showPersonSuggestionDialog();
+        }
       }
     }
+  }
+
+  Future<void> _showPersonSuggestionDialog() async {
+    final selectedPeople = <String>{};
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Gợi ý người nợ'),
+          content: _knownPeople.isEmpty 
+            ? const Text('Chưa có lịch sử người nợ. Hãy nhập tên thủ công.')
+            : SizedBox(
+                width: double.maxFinite,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.4),
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: _knownPeople.length,
+                    itemBuilder: (context, index) {
+                      final person = _knownPeople[index];
+                      final isSelected = selectedPeople.contains(person);
+                      return CheckboxListTile(
+                        title: Text(person),
+                        value: isSelected,
+                        onChanged: (val) {
+                          setDialogState(() {
+                            if (val == true) {
+                              selectedPeople.add(person);
+                            } else {
+                              selectedPeople.remove(person);
+                            }
+                          });
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Bỏ qua')),
+            if (_knownPeople.isNotEmpty)
+              ElevatedButton(
+                onPressed: () {
+                  setState(() {
+                    // Remove empty initial rows correctly
+                    for (int i = _nameControllers.length - 1; i >= 0; i--) {
+                      if (_nameControllers[i].text.trim().isEmpty) {
+                        _nameControllers[i].dispose();
+                        _splitAmountControllers[i].dispose();
+                        _nameControllers.removeAt(i);
+                        _splitAmountControllers.removeAt(i);
+                      }
+                    }
+                    
+                    for (var p in selectedPeople) {
+                      _addPerson(p);
+                    }
+                  });
+                  Navigator.pop(ctx);
+                },
+                child: const Text('Xong'),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _scanReceipt() async {

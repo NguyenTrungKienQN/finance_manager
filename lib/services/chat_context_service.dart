@@ -57,7 +57,7 @@ class ChatContextService {
     final thisWeekTotal = thisWeekTxs.fold<double>(0, (sum, tx) => sum + tx.amount);
     final lastWeekTotal = lastWeekTxs.fold<double>(0, (sum, tx) => sum + tx.amount);
     
-    final income = settings.monthlySalary;
+    final income = settings.totalIncomeForDate(now);
     final remaining = income - currentTotal;
     final dailyLimit = settings.computedDailyLimit;
 
@@ -95,7 +95,7 @@ class ChatContextService {
         String budgetStr = "";
         if (budget != null && budget > 0) {
           budgetStr =
-              " [Hạn mức: ${fmt.format(budget.toInt())}₫/${period == BudgetPeriod.daily ? 'ngày' : 'tháng'}]";
+              " [Hạn mức: ${fmt.format(budget.round())}₫/${period == BudgetPeriod.daily ? 'ngày' : 'tháng'}]";
         }
 
         if (cur > 0 || prv > 0 || budgetStr.isNotEmpty) {

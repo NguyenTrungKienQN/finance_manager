@@ -20,7 +20,7 @@ class MonthlySummaryCard extends StatelessWidget {
       builder: (context, box, _) {
         final now = DateTime.now();
         final daysInMonth = DateUtils.getDaysInMonth(now.year, now.month);
-        final monthlyBudget = monthlySalary;
+        final monthlyBudget = monthlySalary.roundToDouble();
 
         final monthlyTransactions = box.values
             .where((t) => t.date.year == now.year && t.date.month == now.month)

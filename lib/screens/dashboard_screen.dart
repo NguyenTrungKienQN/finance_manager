@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
+import 'statistics_screen.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:palette_generator/palette_generator.dart';
 import '../models/transaction_model.dart';
@@ -33,8 +34,10 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  late double _dailyLimit;      // Rollover-adjusted, used for AddTransaction & home widget
-  late double _baseDailyLimit;   // Raw monthlySalary / daysInMonth, used for cards that self-compute rollover
+  late double
+      _dailyLimit; // Rollover-adjusted, used for AddTransaction & home widget
+  late double
+      _baseDailyLimit; // Raw monthlySalary / daysInMonth, used for cards that self-compute rollover
   late double _monthlySalary;
   DateTime _selectedDate = AppTimeService.instance.now();
   String _userName = "Bạn";
@@ -171,13 +174,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
       settingsBox.put('appSettings', settings);
     }
     setState(() {
-      _monthlySalary = settings!.monthlySalary;
+      _monthlySalary = settings!.totalIncomeForDate(_selectedDate);
       _dailyLimit = settings.computedDailyLimit;
       // Base limit should be universally consistent with SettingsModel logic,
       // correctly accounting for monthly fixed categories and tracking dates.
       final now = AppTimeService.instance.now();
       _baseDailyLimit = settings.baseDailyLimitFor(now);
-      
+
       _userName = settings.userName;
       _headerBackgroundImagePath = settings.headerBackgroundImagePath;
     });
@@ -417,10 +420,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: ColorScheme.light(
-              primary: Theme.of(context).primaryColor,
+              primary: AppTheme.softPurple,
               onPrimary: Colors.white,
               surface: Colors.white,
-              onSurface: Colors.black,
+              onSurface: Colors.blueGrey.shade900,
+              secondary: AppTheme.softPurple,
+            ),
+            datePickerTheme: DatePickerThemeData(
+              backgroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(28),
+              ),
+            ),
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(
+                foregroundColor: AppTheme.softPurple,
+                textStyle: const TextStyle(fontWeight: FontWeight.bold),
+              ),
             ),
           ),
           child: child!,
@@ -450,7 +466,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         if (t.date.year == now.year && t.date.month == now.month) {
           if (t.category == cat.name) {
             monthSpent += t.amount;
-            dailySpending[t.date.day] = (dailySpending[t.date.day] ?? 0) + t.amount;
+            dailySpending[t.date.day] =
+                (dailySpending[t.date.day] ?? 0) + t.amount;
           }
         }
       }
@@ -461,7 +478,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
       // Only forecast if not already over budget
       final bool isMonthly = cat.budgetPeriod == BudgetPeriod.monthly;
-      final double effectiveMonthlyBudget = isMonthly ? cat.budget! : cat.budget! * daysInMonth;
+      final double effectiveMonthlyBudget =
+          isMonthly ? cat.budget! : cat.budget! * daysInMonth;
       final double ratio = monthSpent / effectiveMonthlyBudget;
 
       // Always check for threshold alerts (50%, 80%, 100%)
@@ -471,7 +489,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ratio: ratio,
         );
       }
-      
+
       if (daysWithData >= 3 && monthSpent < effectiveMonthlyBudget) {
         final double mtdAverage = monthSpent / currentDay;
         final int recentWindow = currentDay < 7 ? currentDay : 7;
@@ -490,7 +508,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
           if (exhaustionDate.isBefore(lastDayOfMonth)) {
             final daysEarly = lastDayOfMonth.difference(exhaustionDate).inDays;
-            
+
             // Fire proactive warning if at least 3 days early
             if (daysEarly >= 3) {
               NotificationService().fireVelocityWarning(
@@ -508,85 +526,104 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final habitSuggestion = GeminiChatService().fastCheckHabits();
     if (habitSuggestion != null && mounted) {
       final String habitName = habitSuggestion['habit_name'] ?? '';
-      debugPrint('[AI Auto Suggest] Kiểm tra thói quen: $habitName');
-      
+
       // Kiểm tra có đang tham gia thử thách này không
-      final activeHabits = Hive.box<HabitBreaker>('habitBreakers').values.toList();
-      final alreadyTracking = activeHabits.any((h) => 
+      final activeHabits =
+          Hive.box<HabitBreaker>('habitBreakers').values.toList();
+      final alreadyTracking = activeHabits.any((h) =>
           h.habitName.toLowerCase() == habitName.toLowerCase() && h.isActive);
-      
-      if (alreadyTracking) {
-        debugPrint('[AI Auto Suggest] Bỏ qua vì đã có thử thách đang chạy cho $habitName');
-        return;
-      }
 
-      final prefs = await SharedPreferences.getInstance();
-      final nowStr = now.toIso8601String().split('T')[0];
-      
-      // Không spam, chỉ hỏi 1 lần/ngày/thói quen
-      final lastPrompt = prefs.getString('last_inapp_habit_prompt_$habitName');
-      if (lastPrompt == nowStr) {
-        debugPrint('[AI Auto Suggest] Bỏ qua vì hôm nay ($nowStr) đã nhắc thói quen $habitName rồi');
-        return;
-      }
+      if (!alreadyTracking) {
+        final prefs = await SharedPreferences.getInstance();
+        final nowStr = now.toIso8601String().split('T')[0];
 
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
-        if (!mounted) return;
-        
-        // Kiểm tra lại lần nữa trong callback để chắc chắn không hiện đè
-        await prefs.setString('last_inapp_habit_prompt_$habitName', nowStr);
-        
-        if (mounted) {
-          showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (ctx) => AlertDialog(
-              backgroundColor: Theme.of(ctx).cardColor,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-              title: Row(
-                children: [
-                  const Icon(Icons.auto_awesome, color: Colors.blueAccent),
-                  const SizedBox(width: 8),
-                  Expanded(child: Text('AI Phát hiện thói quen', style: Theme.of(ctx).textTheme.titleLarge)),
+        // Không spam, chỉ hỏi 1 lần/ngày/thói quen
+        final lastPrompt =
+            prefs.getString('last_inapp_habit_prompt_$habitName');
+        if (lastPrompt != nowStr) {
+          await prefs.setString('last_inapp_habit_prompt_$habitName', nowStr);
+
+          if (mounted) {
+            showDialog(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                backgroundColor: Theme.of(ctx).cardColor,
+                surfaceTintColor: Colors.transparent,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(28)),
+                title: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppTheme.softPurple.withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.auto_awesome,
+                          color: AppTheme.softPurple, size: 24),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('AI Phân tích',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.softPurple,
+                                letterSpacing: 1.2,
+                              )),
+                          const SizedBox(height: 2),
+                          Text(habitName,
+                              style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                height: 1.2,
+                              )),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                content: Text(
+                  habitSuggestion['reason'] ??
+                      'Hệ thống nhận thấy bạn đang chi tiêu khá nhiều cho "$habitName". Bạn có muốn xem xét lại thói quen này không?',
+                  style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(
+                        height: 1.5,
+                        color: Theme.of(ctx).textTheme.bodyMedium?.color?.withValues(alpha: 0.8),
+                      ),
+                ),
+                actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.grey[600],
+                    ),
+                    child: const Text('Bỏ qua', style: TextStyle(fontWeight: FontWeight.w600)),
+                  ),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      HabitHelper.showAddHabitSheet(context,
+                          initialName: habitName);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.softPurple,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16)),
+                    ),
+                    child: const Text('Xem ngay', style: TextStyle(fontWeight: FontWeight.w700)),
+                  ),
                 ],
               ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Gợi ý: Bắt đầu bỏ $habitName',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    habitSuggestion['reason'] ?? 'Bạn đang chi tiêu khá nhiều cho khoản này. Hãy thử thách bản thân để tiết kiệm hơn!',
-                    style: Theme.of(ctx).textTheme.bodyMedium,
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: Text('Để sau', style: TextStyle(color: Theme.of(ctx).textTheme.bodySmall?.color)),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    HabitHelper.showAddHabitSheet(context, initialName: habitName);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(ctx).primaryColor,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: const Text('Xem ngay'),
-                ),
-              ],
-            ),
-          );
+            );
+          }
         }
-      });
+      }
     }
   }
 
@@ -741,6 +778,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ),
                           const SizedBox(width: 12),
                           IconButton(
+                            onPressed: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const StatisticsScreen()),
+                            ),
+                            icon: const Icon(Icons.analytics_outlined),
+                            color: _headerContentColor,
+                          ),
+                          const SizedBox(width: 4),
+                          IconButton(
                             onPressed: _showSettingsDialog,
                             icon: const Icon(Icons.settings_outlined),
                             color: _headerContentColor,
@@ -871,8 +917,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     children: [
                       _buildCategoryChip(null, 'Tất cả'),
                       ...CategoryRegistry.instance.getAll().map(
-                        (cat) => _buildCategoryChip(cat.name, cat.name),
-                      ),
+                            (cat) => _buildCategoryChip(cat.name, cat.name),
+                          ),
                     ],
                   ),
                 ),
@@ -1196,14 +1242,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
     double todaySpent = 0;
     double monthSpent = 0;
     double totalMonthSpent = 0;
-    final Map<int, double> dailySpending = {}; // day -> amount for this category
+    final Map<int, double> dailySpending =
+        {}; // day -> amount for this category
 
     for (final t in box.values) {
       if (t.date.year == now.year && t.date.month == now.month) {
         totalMonthSpent += t.amount;
         if (t.category == category) {
           monthSpent += t.amount;
-          dailySpending[t.date.day] = (dailySpending[t.date.day] ?? 0) + t.amount;
+          dailySpending[t.date.day] =
+              (dailySpending[t.date.day] ?? 0) + t.amount;
           if (t.date.day == now.day) {
             todaySpent += t.amount;
           }
@@ -1213,20 +1261,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     // Determine which spent amount & label to display based on budget period
     final bool isMonthly = period == BudgetPeriod.monthly;
-    final double displaySpent = (budget != null && isMonthly) ? monthSpent : todaySpent;
-    final String periodLabel = (budget != null && isMonthly) ? 'tháng này' : 'hôm nay';
+    final double displaySpent =
+        (budget != null && isMonthly) ? monthSpent : todaySpent;
+    final String periodLabel =
+        (budget != null && isMonthly) ? 'tháng này' : 'hôm nay';
 
     // Share percentage calculation
-    final double sharePercent = totalMonthSpent > 0 ? (monthSpent / totalMonthSpent) * 100 : 0.0;
-    final String shareStr = sharePercent == sharePercent.roundToDouble() 
-        ? '${sharePercent.toInt()}%' 
+    final double sharePercent =
+        totalMonthSpent > 0 ? (monthSpent / totalMonthSpent) * 100 : 0.0;
+    final String shareStr = sharePercent == sharePercent.roundToDouble()
+        ? '${sharePercent.toInt()}%'
         : '${sharePercent.toStringAsFixed(1)}%';
     final bool isDominant = sharePercent >= 40;
 
     // Budget progress and utility flags (Moved up for forecasting logic)
     final bool hasBudget = budget != null && budget > 0;
-    final double displaySpentForProgress = (budget != null && isMonthly) ? monthSpent : todaySpent;
-    final double progress = hasBudget ? (displaySpentForProgress / budget).clamp(0.0, 1.0) : 0;
+    final double displaySpentForProgress =
+        (budget != null && isMonthly) ? monthSpent : todaySpent;
+    final double progress =
+        hasBudget ? (displaySpentForProgress / budget).clamp(0.0, 1.0) : 0;
     final bool isOver = hasBudget && displaySpentForProgress > budget;
 
     // --- Budget Velocity Forecasting ---
@@ -1255,16 +1308,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
       if (velocity > 0) {
         // Normalize budget to monthly equivalent if it's a daily limit
-        final double effectiveMonthlyBudget = isMonthly ? budget : budget * daysInMonth;
+        final double effectiveMonthlyBudget =
+            isMonthly ? budget : budget * daysInMonth;
         final double remainingBudget = effectiveMonthlyBudget - monthSpent;
 
         if (remainingBudget > 0) {
           final int daysUntilExhausted = (remainingBudget / velocity).floor();
           exhaustionDate = now.add(Duration(days: daysUntilExhausted));
-          
+
           final lastDayOfMonth = DateTime(now.year, now.month, daysInMonth);
           isSustainable = !exhaustionDate.isBefore(lastDayOfMonth);
-          
+
           if (!isSustainable) {
             daysEarly = lastDayOfMonth.difference(exhaustionDate).inDays;
           }
@@ -1348,7 +1402,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     style: TextStyle(
                       fontWeight: FontWeight.w800,
                       fontSize: 18,
-                      color: isOver ? Colors.redAccent : Theme.of(context).textTheme.bodyLarge?.color,
+                      color: isOver
+                          ? Colors.redAccent
+                          : Theme.of(context).textTheme.bodyLarge?.color,
                     ),
                   ),
                   if (hasBudget)
@@ -1387,7 +1443,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 if (isOver)
                   Row(
                     children: [
-                      Icon(Icons.warning_amber_rounded, size: 14, color: Colors.redAccent),
+                      Icon(Icons.warning_amber_rounded,
+                          size: 14, color: Colors.redAccent),
                       const SizedBox(width: 4),
                       Text(
                         'Vu\u01b0\u1ee3t h\u1ea1n m\u1ee9c',
@@ -1464,7 +1521,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             child: Row(
               children: [
                 Icon(
-                  isDominant ? Icons.warning_amber_rounded : Icons.pie_chart_outline_rounded,
+                  isDominant
+                      ? Icons.warning_amber_rounded
+                      : Icons.pie_chart_outline_rounded,
                   size: 14,
                   color: isDominant ? Colors.orange : catColor,
                 ),
@@ -1493,30 +1552,41 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: (isSustainable ? const Color(0xFF4CAF50) : Colors.redAccent).withValues(alpha: 0.08),
+                color:
+                    (isSustainable ? const Color(0xFF4CAF50) : Colors.redAccent)
+                        .withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: (isSustainable ? const Color(0xFF4CAF50) : Colors.redAccent).withValues(alpha: 0.1),
+                  color: (isSustainable
+                          ? const Color(0xFF4CAF50)
+                          : Colors.redAccent)
+                      .withValues(alpha: 0.1),
                   width: 1,
                 ),
               ),
               child: Row(
                 children: [
                   Icon(
-                    isSustainable ? Icons.trending_up_rounded : Icons.trending_down_rounded,
+                    isSustainable
+                        ? Icons.trending_up_rounded
+                        : Icons.trending_down_rounded,
                     size: 14,
-                    color: isSustainable ? const Color(0xFF4CAF50) : Colors.redAccent,
+                    color: isSustainable
+                        ? const Color(0xFF4CAF50)
+                        : Colors.redAccent,
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      isSustainable 
-                        ? 'Tốc độ chi tiêu hợp lý ✓'
-                        : 'Dự kiến hết ngân sách: ${DateFormat('dd/MM').format(exhaustionDate ?? now)} ${daysEarly != null ? "($daysEarly ngày sớm)" : ""}',
+                      isSustainable
+                          ? 'Tốc độ chi tiêu hợp lý ✓'
+                          : 'Dự kiến hết ngân sách: ${DateFormat('dd/MM').format(exhaustionDate ?? now)} ${daysEarly != null ? "($daysEarly ngày sớm)" : ""}',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: isSustainable ? const Color(0xFF4CAF50) : Colors.redAccent,
+                        color: isSustainable
+                            ? const Color(0xFF4CAF50)
+                            : Colors.redAccent,
                       ),
                     ),
                   ),

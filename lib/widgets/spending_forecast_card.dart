@@ -121,10 +121,10 @@ class SpendingForecastCard extends StatelessWidget {
            totalWeight += weight;
         }
 
-        double avgDailySpend = totalWeight > 0 ? weightedSum / totalWeight : 0;
+        double avgDailySpend = totalWeight > 0 ? (weightedSum / totalWeight).roundToDouble() : 0;
         int daysRemaining = daysInMonth - now.day;
-        double projectedTotal = totalSpent + (avgDailySpend * daysRemaining);
-        double monthlyBudget = monthlySalary;
+        double projectedTotal = (totalSpent + (avgDailySpend * daysRemaining)).roundToDouble();
+        double monthlyBudget = monthlySalary.roundToDouble();
         bool isDanger = projectedTotal > monthlyBudget;
 
         return Container(

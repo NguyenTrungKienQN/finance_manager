@@ -7,6 +7,7 @@ import '../services/app_time_service.dart';
 import '../theme/app_theme.dart'; // For AppTheme
 import '../models/spending_category_model.dart';
 import '../services/category_registry.dart';
+import '../services/income_service.dart';
 
 class DailyBalanceCard extends StatelessWidget {
   final double dailyLimit;
@@ -60,15 +61,14 @@ class DailyBalanceCard extends StatelessWidget {
             debugPrint('--- DEBUG DAILY LIMIT ---');
             debugPrint('Selected Date: $selectedDate');
             debugPrint(
-                'Base Daily: ${settings.baseDailyLimitFor(selectedDate)}');
+                'Base Daily: ${settings.baseDailyLimitFor(selectedDate).toInt()}');
             debugPrint(
-                'Total Monthly Fixed: ${CategoryRegistry.instance.totalMonthlyFixed()}');
+                'Total Monthly Fixed: ${CategoryRegistry.instance.totalMonthlyFixed().toInt()}');
             debugPrint('Initial Month Spent: ${settings.initialMonthSpent}');
-            debugPrint(
-                'Setup Month Budget: ${settings.monthlySalary - CategoryRegistry.instance.totalMonthlyFixed()}');
-            debugPrint('Dynamic Daily Limit: $dynamicDailyLimit');
-            debugPrint('Day Spent: $daySpent');
-            debugPrint('Remaining: $remaining');
+            debugPrint('Setup Month Budget: ${(IncomeService.instance.getTotalIncome(selectedDate) - CategoryRegistry.instance.totalMonthlyFixed()).toInt()}');
+            debugPrint('Dynamic Daily Limit: ${dynamicDailyLimit.toInt()}');
+            debugPrint('Day Spent: ${daySpent.toInt()}');
+            debugPrint('Remaining: ${remaining.toInt()}');
 
             final progress = dynamicDailyLimit > 0
                 ? (daySpent / dynamicDailyLimit)
@@ -174,7 +174,7 @@ class DailyBalanceCard extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'trên ${NumberFormat.compact(locale: "vi").format(dynamicDailyLimit)} hạn mức ngày',
+                          'trên ${NumberFormat.compact(locale: "vi").format(dynamicDailyLimit.round())} hạn mức ngày',
                           style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.8),
                             fontSize: 14,

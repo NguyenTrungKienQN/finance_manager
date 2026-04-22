@@ -284,20 +284,29 @@ class NotificationService {
         logBox.get('notifCategoryThresholdEnabled', defaultValue: true) as bool;
     if (!isEnabled) return;
 
-    // Determine threshold level: 1.0 (100%), 0.8 (80%), 0.5 (50%)
+    final now = AppTimeService.instance.now();
+    final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
+    final expectedRatio = now.day / daysInMonth;
+
+    // Determine threshold level based on ratio and pacing
     int thresholdPercent;
     if (ratio >= 1.0) {
       thresholdPercent = 100;
     } else if (ratio >= 0.8) {
       thresholdPercent = 80;
     } else if (ratio >= 0.5) {
-      thresholdPercent = 50;
+      // Only warn about 50% if we reached it too quickly (e.g. before 40% of the month)
+      // If it's late in the month, 50% spent is actually healthy pacing.
+      if (expectedRatio < 0.4) {
+        thresholdPercent = 50;
+      } else {
+        return; // Suppress false-positive warning
+      }
     } else {
       return;
     }
 
     final history = _categoryThresholdHistory;
-    final now = AppTimeService.instance.now();
     final monthKey = '${now.year}-${now.month}';
     final historyKey = '$monthKey:$category:$thresholdPercent';
 
@@ -314,18 +323,23 @@ class NotificationService {
 
     if (thresholdPercent == 100) {
       title = 'Hết ngân sách $category! 🛑';
-      body =
-          'Bạn đã tiêu hết 100% ngân sách cho "$category". Hãy cân nhắc dừng lại.';
+      body = 'Bạn đã tiêu hết 100% ngân sách cho "$category". Hãy cân nhắc dừng lại.';
       id = 99800 + category.hashCode % 100;
     } else if (thresholdPercent == 80) {
-      title = 'Sắp hết tiền cho $category! ⚠️';
-      body = 'Bạn đã dùng $thresholdPercent% ngân sách cho "$category".';
+      if (expectedRatio < 0.6) {
+        title = 'Tiêu quá nhanh cho $category! ⚠️';
+        body = 'Mới qua ${(expectedRatio * 100).round()}% tháng mà đã dùng 80% ngân sách "$category".';
+      } else {
+        title = 'Sắp hết tiền cho $category! ⚠️';
+        body = 'Bạn đã dùng 80% ngân sách cho "$category".';
+      }
       id = 99820 + category.hashCode % 100;
     } else {
-      title = 'Cảnh báo $category 💡';
-      body = 'Bạn đã dùng $thresholdPercent% ngân sách tháng cho "$category".';
+      title = 'Cảnh báo tốc độ chi $category 💡';
+      body = 'Mới đầu tháng mà bạn đã dùng $thresholdPercent% ngân sách cho "$category". Hãy đi chậm lại.';
       id = 99840 + category.hashCode % 100;
     }
+
 
     await flutterLocalNotificationsPlugin.show(
       id,

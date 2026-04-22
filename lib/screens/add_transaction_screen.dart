@@ -231,10 +231,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     // 2. MONTHLY CHECK (Emergency Reserve Trigger)
     // Always check totalMonthlySpent (with new tx) against monthly salary
     double totalPredictedMonthSpent = monthSpentSoFar + _totalAmount;
-    double shortfall = totalPredictedMonthSpent - settings.monthlySalary;
+    double shortfall = totalPredictedMonthSpent - settings.totalIncomeForDate(now);
     double safeAmountToUse = 0;
-
-    if (totalPredictedMonthSpent > settings.monthlySalary) {
+    if (totalPredictedMonthSpent > settings.totalIncomeForDate(now)) {
       HapticFeedback.vibrate();
 
       // If Safe has money, offer to cover the shortfall

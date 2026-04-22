@@ -255,6 +255,83 @@ class _HabitBreakerScreenState extends State<HabitBreakerScreen> {
     HabitHelper.showAiSuggestionDialog(context, suggestion);
   }
 
+  Future<void> _showWhitelistDialog() async {
+    final box = Hive.box<String>('habitWhitelist');
+    final controller = TextEditingController();
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.verified_user_outlined, color: Colors.green),
+              SizedBox(width: 8),
+              Text('Danh sách trắng'),
+            ],
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Các từ khóa trong danh sách này sẽ bị AI bỏ qua khi tìm thói quen xấu.',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 8,
+                  children: box.values.map((word) => Chip(
+                    label: Text(word, style: const TextStyle(fontSize: 12)),
+                    onDeleted: () {
+                      final key = box.keys.firstWhere((k) => box.get(k) == word);
+                      box.delete(key);
+                      setDialogState(() {});
+                    },
+                    deleteIconColor: Colors.redAccent,
+                    backgroundColor: Colors.green.withValues(alpha: 0.1),
+                  )).toList(),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: controller,
+                  decoration: InputDecoration(
+                    hintText: 'Thêm từ khóa (VD: cafe)',
+                    suffixIcon: IconButton(
+                      icon: const Icon(Icons.add_circle),
+                      onPressed: () {
+                        final val = controller.text.trim();
+                        if (val.isNotEmpty && !box.values.contains(val)) {
+                          box.add(val);
+                          controller.clear();
+                          setDialogState(() {});
+                        }
+                      },
+                    ),
+                  ),
+                  onSubmitted: (val) {
+                    if (val.trim().isNotEmpty && !box.values.contains(val.trim())) {
+                      box.add(val.trim());
+                      controller.clear();
+                      setDialogState(() {});
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Đóng'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -280,13 +357,21 @@ class _HabitBreakerScreenState extends State<HabitBreakerScreen> {
                           size: 28,
                         ),
                         const SizedBox(width: 8),
-                        Text(
-                          'Thử thách bỏ thói quen',
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            fontSize: 20,
+                        Expanded(
+                          child: Text(
+                            'Thử thách bỏ thói quen',
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              fontSize: 20,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         const Spacer(),
+                        IconButton(
+                          onPressed: _showWhitelistDialog,
+                          icon: const Icon(Icons.settings_outlined, color: Colors.grey),
+                          tooltip: 'Danh sách trắng',
+                        ),
                         IconButton(
                           onPressed: _handleAiSuggestion,
                           icon: const Icon(Icons.auto_awesome, color: Colors.blueAccent),

@@ -4,12 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 import '../models/settings_model.dart';
-import '../models/transaction_model.dart'; // Added for rollover calculation
 import '../services/backup_service.dart';
 import '../services/app_time_service.dart';
 import '../services/notification_service.dart';
 import '../theme/app_theme.dart';
-import '../widgets/currency_converter_sheet.dart';
 import '../widgets/liquid_glass.dart';
 import 'package:flutter/foundation.dart';
 import '../utils/web_compatibility_helper.dart';
@@ -19,6 +17,9 @@ import 'package:path_provider/path_provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'export_settings_page.dart';
 import 'category_management_page.dart';
+import 'income_manager_screen.dart';
+import 'statistics_screen.dart';
+
 
 // ─────────────────────────────────────────────────
 // Main Settings Hub
@@ -52,18 +53,17 @@ class SettingsScreen extends StatelessWidget {
             icon: Icons.account_balance_wallet_rounded,
             iconColor: const Color(0xFF00BFA6),
             iconBgColor: const Color(0xFF00BFA6),
-            title: 'Đặt ngân sách tháng',
-            subtitle: 'Thiết lập hạn mức chi tiêu hàng tháng',
+            title: 'Quản lý thu nhập',
+            subtitle: 'Thiết lập lương và các nguồn thu hàng tháng',
             onTap: () async {
-              final result = await Navigator.push<double>(
+              await Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) =>
-                      SalarySettingsPage(currentSalary: currentSalary),
+                  builder: (_) => const IncomeManagerScreen(),
                 ),
               );
-              if (result != null && context.mounted) {
-                Navigator.pop(context, result);
+              if (context.mounted) {
+                // The dashboard will refresh when Settings is eventually closed
               }
             },
           ),
@@ -89,6 +89,18 @@ class SettingsScreen extends StatelessWidget {
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const AppearanceSettingsPage()),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _SettingsTile(
+            icon: Icons.bar_chart_rounded,
+            iconColor: Colors.blueAccent,
+            iconBgColor: Colors.blueAccent,
+            title: 'Thống kê & Báo cáo',
+            subtitle: 'Xem biểu đồ và báo cáo chi tiêu theo thời gian',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const StatisticsScreen()),
             ),
           ),
           const SizedBox(height: 12),
@@ -143,14 +155,13 @@ class SettingsScreen extends StatelessWidget {
               MaterialPageRoute(builder: (_) => const BackupSettingsPage()),
             ),
           ),
-          if (kDebugMode) ...[
             const SizedBox(height: 12),
             _SettingsTile(
               icon: Icons.schedule_rounded,
               iconColor: const Color(0xFF7E57C2),
               iconBgColor: const Color(0xFF7E57C2),
-              title: 'Điều khiển thời gian test',
-              subtitle: 'Tăng giảm ngày trong app để test streak nhanh',
+              title: 'Điều khiển thời gian',
+              subtitle: 'Tăng giảm ngày trong ứng dụng',
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -158,7 +169,6 @@ class SettingsScreen extends StatelessWidget {
                 ),
               ),
             ),
-          ],
           const SizedBox(height: 12),
           _SettingsTile(
             icon: Icons.summarize_rounded,
@@ -279,350 +289,6 @@ class _SettingsTile extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────
-// 1. Salary Settings Page
-// ─────────────────────────────────────────────────
-class SalarySettingsPage extends StatefulWidget {
-  final double currentSalary;
-  const SalarySettingsPage({super.key, required this.currentSalary});
-
-  @override
-  State<SalarySettingsPage> createState() => _SalarySettingsPageState();
-}
-
-class _SalarySettingsPageState extends State<SalarySettingsPage> {
-  late TextEditingController _controller;
-  late TextEditingController _spentController;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController(
-      text: widget.currentSalary.toStringAsFixed(0),
-    );
-    final settingsBox = Hive.box<AppSettings>('settings');
-    final settings = settingsBox.get('appSettings') ?? AppSettings();
-    _spentController = TextEditingController(
-      text: settings.initialMonthSpent.toStringAsFixed(0),
-    );
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    _spentController.dispose();
-    super.dispose();
-  }
-
-  double get _parsedSalary =>
-      double.tryParse(_controller.text.replaceAll(RegExp(r'[,.]'), '')) ?? 0;
-      
-  double get _parsedSpent =>
-      double.tryParse(_spentController.text.replaceAll(RegExp(r'[,.]'), '')) ?? 0;
-
-  double get _computedDailyLimit {
-    final now = AppTimeService.instance.now();
-    final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
-    return _parsedSalary > 0 ? _parsedSalary / daysInMonth : 0;
-  }
-
-  void _saveAndPop() {
-    if (_parsedSalary > 0) {
-      final settingsBox = Hive.box<AppSettings>('settings');
-      final settings = settingsBox.get('appSettings') ?? AppSettings();
-      settings.monthlySalary = _parsedSalary;
-      settings.initialMonthSpent = _parsedSpent;
-      settings.dailyLimit = _computedDailyLimit;
-      settingsBox.put('appSettings', settings);
-      Navigator.pop(context, _parsedSalary);
-    } else {
-      Navigator.pop(context);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final fmt = NumberFormat.currency(
-      locale: 'vi',
-      symbol: '₫',
-      decimalDigits: 0,
-    );
-
-    return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: Text('Đặt ngân sách tháng', style: theme.textTheme.titleLarge),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new),
-          color: theme.iconTheme.color,
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: CustomScrollView(
-        slivers: [
-          SliverFillRemaining(
-            hasScrollBody: false,
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Banner
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      gradient: AppTheme.primaryGradient,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(
-                          Icons.account_balance_wallet,
-                          color: Colors.white,
-                          size: 32,
-                        ),
-                        SizedBox(width: 16),
-                        Expanded(
-                          child: Text(
-                            'Nhập ngân sách tháng để tự động tính hạn mức chi tiêu hàng ngày.',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 15,
-                              height: 1.4,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-
-                  // Label
-                  Text(
-                    'Ngân sách tháng',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Input
-                  TextField(
-                    controller: _controller,
-                    keyboardType: TextInputType.number,
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: theme.textTheme.bodyLarge?.color,
-                    ),
-                    onChanged: (_) => setState(() {}),
-                    decoration: InputDecoration(
-                      suffixText: 'VNĐ',
-                      suffixStyle: TextStyle(
-                        color: theme.textTheme.bodyMedium?.color,
-                      ),
-                      suffixIcon: IconButton(
-                        onPressed: () {
-                          CurrencyConverterSheet.show(
-                            context,
-                            targetController: _controller,
-                          ).then((_) => setState(() {}));
-                        },
-                        icon: Icon(
-                          Icons.currency_exchange,
-                          color: theme.primaryColor,
-                        ),
-                        tooltip: 'Quy đổi tiền tệ',
-                      ),
-                      filled: true,
-                      fillColor: theme.canvasColor,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 20,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Label for spent
-                  Text(
-                    'Đã chi trước khi dùng app',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Input for spent
-                  TextField(
-                    controller: _spentController,
-                    keyboardType: TextInputType.number,
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: theme.textTheme.bodyLarge?.color,
-                    ),
-                    onChanged: (_) => setState(() {}),
-                    decoration: InputDecoration(
-                      suffixText: 'VNĐ',
-                      suffixStyle: TextStyle(
-                        color: theme.textTheme.bodyMedium?.color,
-                      ),
-                      filled: true,
-                      fillColor: theme.canvasColor,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 20,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Daily limit info
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: theme.canvasColor,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: theme.dividerColor),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: theme.primaryColor.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Icon(
-                            Icons.calculate_rounded,
-                            color: theme.primaryColor,
-                            size: 20,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Hạn mức cơ bản',
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                _parsedSalary > 0
-                                    ? '${fmt.format(_computedDailyLimit)}/ngày'
-                                    : '—',
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                  color: theme.primaryColor,
-                                ),
-                              ),
-                              if (_parsedSalary > 0) ...[
-                                const SizedBox(height: 12),
-                                Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: theme.primaryColor
-                                          .withValues(alpha: 0.1),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Builder(builder: (context) {
-                                      final box =
-                                          Hive.box<Transaction>('transactions');
-                                      DateTime now =
-                                          AppTimeService.instance.now();
-                                      double monthSpentBeforeToday = 0;
-
-                                      for (var t in box.values) {
-                                        if (t.date.year == now.year &&
-                                            t.date.month == now.month) {
-                                          if (t.date.day < now.day) {
-                                            monthSpentBeforeToday += t.amount;
-                                          }
-                                        }
-                                      }
-
-                                      int daysPassedBeforeToday = now.day - 1;
-                                      double baseBudgetAccrued =
-                                          daysPassedBeforeToday *
-                                              _computedDailyLimit;
-                                      double rolloverBonus = baseBudgetAccrued -
-                                          monthSpentBeforeToday;
-                                      double dynamicDailyLimit =
-                                          _computedDailyLimit + rolloverBonus;
-                                      if (dynamicDailyLimit < 0) {
-                                        dynamicDailyLimit = 0;
-                                      }
-
-                                      return Text(
-                                        'Hạn mức hôm nay (Rollover): ${fmt.format(dynamicDailyLimit)}',
-                                        style: TextStyle(
-                                          color: theme.primaryColor,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                          fontStyle: FontStyle.italic,
-                                        ),
-                                      );
-                                    }))
-                              ]
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const Spacer(),
-
-                  // Save
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: ElevatedButton(
-                      onPressed: _saveAndPop,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: theme.primaryColor,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      child: const Text(
-                        'Lưu thay đổi',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 // ─────────────────────────────────────────────────
 // 2. Notification Settings Page
@@ -1298,7 +964,7 @@ class TimeTravelSettingsPage extends StatelessWidget {
         backgroundColor: Colors.transparent,
         elevation: 0,
         title: Text(
-          'Điều khiển thời gian test',
+          'Điều khiển thời gian',
           style: theme.textTheme.titleLarge,
         ),
         leading: IconButton(

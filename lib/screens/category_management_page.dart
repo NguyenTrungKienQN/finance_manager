@@ -36,11 +36,12 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
                   .get('appSettings') ?? AppSettings();
           
           final monthlyFixed = CategoryRegistry.instance.totalMonthlyFixed();
-          final dailyPool = (settings.monthlySalary - monthlyFixed) / 30; // Approximation for UI
+          final currentIncome = settings.totalIncomeForDate(DateTime.now());
+          final dailyPool = (currentIncome - monthlyFixed) / 30; // Approximation for UI
 
           return Column(
             children: [
-              _buildHeader(monthlyFixed, settings.monthlySalary, dailyPool),
+              _buildHeader(monthlyFixed, currentIncome, dailyPool),
               Expanded(
                 child: ReorderableListView.builder(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),

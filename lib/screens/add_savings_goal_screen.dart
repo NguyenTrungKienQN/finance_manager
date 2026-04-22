@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 import '../models/savings_goal_model.dart';
 import '../widgets/currency_converter_sheet.dart';
 import '../utils/app_toast.dart';
+import '../theme/app_theme.dart';
 
 class AddSavingsGoalScreen extends StatefulWidget {
   const AddSavingsGoalScreen({super.key});
@@ -61,14 +62,24 @@ class _AddSavingsGoalScreenState extends State<AddSavingsGoalScreen> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: Color(0xFF00BFA6), // AppColors.primary
+            colorScheme: ColorScheme.light(
+              primary: AppTheme.softPurple,
               onPrimary: Colors.white,
-              surface: Color(0xFF1E1E2E), // AppColors.surface
-              onSurface: Colors.white,
+              surface: Colors.white,
+              onSurface: Colors.blueGrey.shade900,
+              secondary: AppTheme.softPurple,
             ),
-            dialogTheme: DialogThemeData(
-              backgroundColor: Theme.of(context).cardColor,
+            datePickerTheme: DatePickerThemeData(
+              backgroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(28),
+              ),
+            ),
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(
+                foregroundColor: AppTheme.softPurple,
+                textStyle: const TextStyle(fontWeight: FontWeight.bold),
+              ),
             ),
           ),
           child: child!,
