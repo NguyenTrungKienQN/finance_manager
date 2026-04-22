@@ -6,8 +6,9 @@ import '../services/app_time_service.dart';
 import '../services/notification_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/habit_broken_dialog.dart';
-import '../widgets/liquid_glass.dart';
 import '../utils/app_toast.dart';
+import '../services/gemini_chat_service.dart';
+import '../utils/habit_helper.dart';
 
 class HabitBreakerScreen extends StatefulWidget {
   const HabitBreakerScreen({super.key});
@@ -74,185 +75,6 @@ class _HabitBreakerScreenState extends State<HabitBreakerScreen> {
     'legend': {'label': 'Huyền thoại', 'emoji': '🏆', 'days': '30'},
   };
 
-  static const Map<String, IconData> iconOptions = {
-    'local_cafe': Icons.local_cafe,
-    'local_bar': Icons.local_bar,
-    'smoking_rooms': Icons.smoking_rooms,
-    'shopping_bag': Icons.shopping_bag,
-    'fastfood': Icons.fastfood,
-    'sports_esports': Icons.sports_esports,
-    'phone_android': Icons.phone_android,
-    'cake': Icons.cake,
-    'icecream': Icons.icecream,
-    'wine_bar': Icons.wine_bar,
-  };
-
-  IconData _getIcon(String name) => iconOptions[name] ?? Icons.local_cafe;
-
-  void _showAddHabitSheet() {
-    final nameController = TextEditingController();
-    String selectedIcon = 'local_cafe';
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (ctx, setSheetState) {
-            final theme = Theme.of(ctx);
-            return Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(top: 90),
-                  child: LiquidGlassContainer(
-                    borderRadius: 28,
-                    blurSigma: 30,
-                    opacity: 0.08,
-                    padding: EdgeInsets.only(
-                      bottom: MediaQuery.of(ctx).viewInsets.bottom,
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Center(
-                            child: Container(
-                              width: 40,
-                              height: 4,
-                              decoration: BoxDecoration(
-                                color: theme.dividerColor,
-                                borderRadius: BorderRadius.circular(2),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          Text(
-                            'Thêm thử thách mới',
-                            style: theme.textTheme.titleLarge,
-                          ),
-                          const SizedBox(height: 20),
-                          TextField(
-                            controller: nameController,
-                            decoration: InputDecoration(
-                              labelText: 'Tên thói quen cần bỏ',
-                              hintText: 'Ví dụ: Trà sữa, Cà phê, ...',
-                              filled: true,
-                              fillColor: theme.canvasColor,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(16),
-                                borderSide: BorderSide.none,
-                              ),
-                              prefixIcon: Icon(
-                                _getIcon(selectedIcon),
-                                color: theme.primaryColor,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Chọn biểu tượng',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: iconOptions.entries.map((entry) {
-                              final isSelected = entry.key == selectedIcon;
-                              return GestureDetector(
-                                onTap: () {
-                                  setSheetState(() => selectedIcon = entry.key);
-                                },
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 200),
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: isSelected
-                                        ? theme.primaryColor.withValues(
-                                            alpha: 0.15,
-                                          )
-                                        : theme.canvasColor,
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: isSelected
-                                        ? Border.all(
-                                            color: theme.primaryColor,
-                                            width: 2,
-                                          )
-                                        : null,
-                                  ),
-                                  child: Icon(
-                                    entry.value,
-                                    color: isSelected
-                                        ? theme.primaryColor
-                                        : theme.iconTheme.color,
-                                  ),
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                          const SizedBox(height: 24),
-                          SizedBox(
-                            width: double.infinity,
-                            height: 52,
-                            child: ElevatedButton(
-                              onPressed: () {
-                                if (nameController.text.trim().isEmpty) return;
-                                final box =
-                                    Hive.box<HabitBreaker>('habitBreakers');
-                                final habit = HabitBreaker(
-                                  id: DateTime.now()
-                                      .millisecondsSinceEpoch
-                                      .toString(),
-                                  habitName: nameController.text.trim(),
-                                  iconName: selectedIcon,
-                                );
-                                box.add(habit);
-                                Navigator.pop(ctx);
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: theme.primaryColor,
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                              ),
-                              child: const Text(
-                                'Bắt đầu thử thách 🔥',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  top: 0,
-                  right: 28,
-                  child: Image.asset(
-                    'assets/mascots/mascotask.png',
-                    height: 130,
-                    fit: BoxFit.contain,
-                  ),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
 
   void _showBadgeDialog(HabitBreaker habit, String badgeId) {
     final badge = badgeInfo[badgeId]!;
@@ -420,6 +242,19 @@ class _HabitBreakerScreenState extends State<HabitBreakerScreen> {
     );
   }
 
+  Future<void> _handleAiSuggestion() async {
+    AppToast.show(context, 'Đang phân tích chi tiêu...');
+    final suggestion = await GeminiChatService().suggestHabitChallenge();
+    if (!mounted) return;
+
+    if (suggestion == null) {
+      AppToast.show(context, 'Bạn đang chi tiêu rất tốt, chưa tìm thấy thói quen xấu nổi bật nào!');
+      return;
+    }
+
+    HabitHelper.showAiSuggestionDialog(context, suggestion);
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -448,8 +283,14 @@ class _HabitBreakerScreenState extends State<HabitBreakerScreen> {
                         Text(
                           'Thử thách bỏ thói quen',
                           style: theme.textTheme.titleLarge?.copyWith(
-                            fontSize: 22,
+                            fontSize: 20,
                           ),
+                        ),
+                        const Spacer(),
+                        IconButton(
+                          onPressed: _handleAiSuggestion,
+                          icon: const Icon(Icons.auto_awesome, color: Colors.blueAccent),
+                          tooltip: 'AI Gợi ý',
                         ),
                       ],
                     ),
@@ -483,7 +324,7 @@ class _HabitBreakerScreenState extends State<HabitBreakerScreen> {
         margin: const EdgeInsets.only(bottom: 90),
         child: FloatingActionButton.extended(
           heroTag: 'addHabit',
-          onPressed: _showAddHabitSheet,
+          onPressed: () => HabitHelper.showAddHabitSheet(context),
           backgroundColor: theme.primaryColor,
           icon: const Icon(Icons.add, color: Colors.white),
           label: const Text(
@@ -754,7 +595,7 @@ class _HabitBreakerScreenState extends State<HabitBreakerScreen> {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          Icon(_getIcon(habit.iconName), color: streakColor, size: 28),
+          Icon(HabitHelper.getIcon(habit.iconName), color: streakColor, size: 28),
           if (habit.hasActiveShield)
             Positioned(
               right: 6,

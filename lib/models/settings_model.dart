@@ -1,6 +1,8 @@
 import 'package:hive/hive.dart';
 import '../services/app_time_service.dart';
-import 'transaction_model.dart';
+import 'package:finance_manager/models/transaction_model.dart';
+import 'package:finance_manager/models/spending_category_model.dart';
+import 'package:finance_manager/services/category_registry.dart';
 
 part 'settings_model.g.dart';
 
@@ -87,7 +89,11 @@ class AppSettings extends HiveObject {
     this.safeBalance = 0.0,
     this.trackingStartDate,
     this.initialMonthSpent = 0.0,
+    this.headerBackgroundImagePath,
   });
+
+  @HiveField(20)
+  String? headerBackgroundImagePath;
 
   bool isTrackingMonth(DateTime date) {
     final start = trackingStartDate;
@@ -97,10 +103,14 @@ class AppSettings extends HiveObject {
   }
 
   bool tracksDate(DateTime date) {
-    final start = trackingStartDate;
-    if (start == null) return true;
-    if (date.year != start.year || date.month != start.month) return true;
-    return date.day >= start.day;
+    if (trackingStartDate == null) return false;
+    final startMonth = DateTime(
+      trackingStartDate!.year,
+      trackingStartDate!.month,
+      1,
+    );
+    final end = DateTime(date.year, date.month, date.day);
+    return !end.isBefore(startMonth);
   }
 
   int trackingStartDayFor(DateTime date) {
@@ -112,18 +122,20 @@ class AppSettings extends HiveObject {
     if (daysInMonth <= 0) return 0;
 
     if (!isTrackingMonth(date)) {
-      return monthlySalary / daysInMonth;
+      final monthlyFixed = CategoryRegistry.instance.totalMonthlyFixed();
+      final availableSalary = monthlySalary - monthlyFixed;
+      return availableSalary / daysInMonth;
     }
 
     final remainingDays = daysInMonth - trackingStartDate!.day + 1;
     if (remainingDays <= 0) return 0;
 
-    final remainingBudgetAtSetup = monthlySalary - initialMonthSpent;
+    final monthlyFixed = CategoryRegistry.instance.totalMonthlyFixed();
+    final remainingBudgetAtSetup = monthlySalary - monthlyFixed;
+    
     final normalizedRemainingBudget = remainingBudgetAtSetup < 0
         ? 0.0
-        : remainingBudgetAtSetup > monthlySalary
-            ? monthlySalary
-            : remainingBudgetAtSetup;
+        : remainingBudgetAtSetup;
 
     return normalizedRemainingBudget / remainingDays;
   }
@@ -133,7 +145,7 @@ class AppSettings extends HiveObject {
     Iterable<Transaction> transactions,
   ) {
     if (!tracksDate(date)) {
-      return 0;
+      return baseDailyLimitFor(date); // Fallback to base limit instead of locking to 0
     }
 
     final daysInMonth = DateTime(date.year, date.month + 1, 0).day;
@@ -146,12 +158,15 @@ class AppSettings extends HiveObject {
           transaction.date.month != date.month) {
         continue;
       }
-      if (transaction.date.day < startDay || transaction.date.day >= date.day) {
-        continue;
+      
+      // Only count non-safe, NON-MONTHLY transactions that happened BEFORE the selected date.
+      if (transaction.date.day < date.day) {
+        final nonSafeAmount = transaction.amount - transaction.safeAmount;
+        final cat = CategoryRegistry.instance.getByName(transaction.category);
+        if (cat?.budgetPeriod != BudgetPeriod.monthly) {
+          monthSpentBeforeDate += nonSafeAmount;
+        }
       }
-
-      final nonSafeAmount = transaction.amount - transaction.safeAmount;
-      monthSpentBeforeDate += nonSafeAmount;
     }
 
     final daysPassedBeforeDate = (date.day - startDay).clamp(0, daysInMonth);

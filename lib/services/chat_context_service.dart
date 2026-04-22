@@ -2,6 +2,8 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 import '../models/transaction_model.dart';
 import '../models/settings_model.dart';
+import '../services/category_registry.dart';
+import '../models/spending_category_model.dart';
 
 /// Fetches real-time financial data from Hive to inject as AI context.
 class ChatContextService {
@@ -79,14 +81,27 @@ class ChatContextService {
 
     String formatCategoryStats() {
       if (currentCats.isEmpty && prevCats.isEmpty) return "Chưa có dữ liệu.";
-      
+
       final buffer = StringBuffer();
-      final allKeys = {...currentCats.keys, ...prevCats.keys}.toList();
-      
+      final allNames = CategoryRegistry.instance.categoryNames();
+      final allKeys = {...currentCats.keys, ...prevCats.keys, ...allNames}.toList();
+
       for (final cat in allKeys) {
         final cur = currentCats[cat] ?? 0;
         final prv = prevCats[cat] ?? 0;
-        buffer.write("- $cat: ${fmt.format(cur.toInt())}₫ (Tháng trước: ${fmt.format(prv.toInt())}₫)\n");
+        final budget = CategoryRegistry.instance.getBudget(cat);
+        final period = CategoryRegistry.instance.getBudgetPeriod(cat);
+
+        String budgetStr = "";
+        if (budget != null && budget > 0) {
+          budgetStr =
+              " [Hạn mức: ${fmt.format(budget.toInt())}₫/${period == BudgetPeriod.daily ? 'ngày' : 'tháng'}]";
+        }
+
+        if (cur > 0 || prv > 0 || budgetStr.isNotEmpty) {
+          buffer.write(
+              "- $cat: ${fmt.format(cur.toInt())}₫ (Tháng trước: ${fmt.format(prv.toInt())}₫)$budgetStr\n");
+        }
       }
       return buffer.toString();
     }

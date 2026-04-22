@@ -101,5 +101,25 @@ class OcrService {
     }
   }
 
+  Future<String> extractRawText(String imagePath) async {
+    try {
+      final imageBytes = await File(imagePath).readAsBytes();
+      final config = TextRecognitionConfig(
+        recognitionLevel: RecognitionLevel.accurate,
+        usesLanguageCorrection: false,
+      );
+
+      final result = await VisionTextRecognition.recognizeTextWithConfig(
+        imageBytes,
+        config,
+      );
+
+      return result.textBlocks.map((block) => block.text).join('\n');
+    } catch (e) {
+      debugPrint("OCR Raw Extraction Error: $e");
+      return "";
+    }
+  }
+
   void dispose() {}
 }

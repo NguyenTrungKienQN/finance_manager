@@ -37,13 +37,14 @@ class AppSettingsAdapter extends TypeAdapter<AppSettings> {
       safeBalance: fields[17] == null ? 0.0 : fields[17] as double,
       trackingStartDate: fields[18] as DateTime?,
       initialMonthSpent: fields[19] == null ? 0.0 : fields[19] as double,
+      headerBackgroundImagePath: fields[20] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, AppSettings obj) {
     writer
-      ..writeByte(20)
+      ..writeByte(21)
       ..writeByte(0)
       ..write(obj.dailyLimit)
       ..writeByte(1)
@@ -83,7 +84,9 @@ class AppSettingsAdapter extends TypeAdapter<AppSettings> {
       ..writeByte(18)
       ..write(obj.trackingStartDate)
       ..writeByte(19)
-      ..write(obj.initialMonthSpent);
+      ..write(obj.initialMonthSpent)
+      ..writeByte(20)
+      ..write(obj.headerBackgroundImagePath);
   }
 
   @override

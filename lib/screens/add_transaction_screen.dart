@@ -22,6 +22,8 @@ import '../services/app_time_service.dart';
 import '../services/gemini_chat_service.dart';
 import '../services/notification_service.dart';
 import '../utils/app_toast.dart';
+import '../services/category_registry.dart';
+import '../models/spending_category_model.dart';
 
 class AddTransactionScreen extends StatefulWidget {
   final double dailyLimit;
@@ -51,15 +53,12 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   final stt.SpeechToText _speech = stt.SpeechToText();
   bool _isListening = false;
 
-  final List<Map<String, dynamic>> _categories = [
-    {'name': 'Ăn uống', 'icon': Icons.restaurant, 'color': Colors.orange},
-    {'name': 'Mua sắm', 'icon': Icons.shopping_bag, 'color': Colors.teal},
-    {'name': 'Giao thông', 'icon': Icons.directions_car, 'color': Colors.blue},
-    {'name': 'Giáo dục', 'icon': Icons.school, 'color': Colors.purple},
-    {'name': 'Giải trí', 'icon': Icons.movie, 'color': Colors.pink},
-    {'name': 'Y tế', 'icon': Icons.medical_services, 'color': Colors.red},
-    {'name': 'Khác', 'icon': Icons.receipt, 'color': Colors.grey},
-  ];
+  List<Map<String, dynamic>> get _categories =>
+      CategoryRegistry.instance.getAll().map((c) => {
+        'name': c.name,
+        'icon': CategoryRegistry.instance.getIcon(c.name),
+        'color': Color(c.colorValue),
+      }).toList();
 
   double get _unitPrice =>
       double.tryParse(_priceController.text.replaceAll(RegExp(r'[,.]'), '')) ??
@@ -182,6 +181,41 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         if (t.date.day == now.day) {
           todaySpent += t.amount;
         }
+      }
+    }
+
+    // 0. CATEGORY BUDGET CHECK (NEW)
+    final catBudget = CategoryRegistry.instance.getBudget(_selectedCategory);
+    final catPeriod =
+        CategoryRegistry.instance.getBudgetPeriod(_selectedCategory);
+    if (catBudget != null && catBudget > 0) {
+      double todayCatSpent = 0;
+      for (var t in box.values) {
+        if (t.category == _selectedCategory) {
+          if (catPeriod == BudgetPeriod.monthly) {
+            if (t.date.year == now.year && t.date.month == now.month) {
+              todayCatSpent += t.amount;
+            }
+          } else {
+            // Daily
+            if (t.date.year == now.year &&
+                t.date.month == now.month &&
+                t.date.day == now.day) {
+              todayCatSpent += t.amount;
+            }
+          }
+        }
+      }
+
+      if (todayCatSpent + _totalAmount > catBudget) {
+        HapticFeedback.heavyImpact();
+        bool? confirm = await _showCategoryLimitDialog(
+          _selectedCategory,
+          todayCatSpent,
+          catBudget,
+          catPeriod!,
+        );
+        if (confirm != true) return;
       }
     }
 
@@ -510,6 +544,103 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     );
   }
 
+  Future<bool?> _showCategoryLimitDialog(
+    String category,
+    double spent,
+    double limit,
+    BudgetPeriod period,
+  ) {
+    final periodLabel = period == BudgetPeriod.daily ? 'ngày' : 'tháng';
+    return showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 20),
+              decoration: BoxDecoration(
+                color: Theme.of(context).dividerColor.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Image.asset('assets/mascots/mascotmad.png', height: 180),
+            const SizedBox(height: 24),
+            const Text(
+              'DỪNG LẠI!',
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w900,
+                color: Colors.redAccent,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Hạn mức của $category',
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Chi tiêu cho $category đã vượt hạn mức $periodLabel.',
+              style: TextStyle(
+                color: Theme.of(context).textTheme.bodyMedium?.color,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                children: [
+                  _buildInfoRow('Đã tiêu ($periodLabel)', spent),
+                  Divider(color: Theme.of(context).dividerColor, height: 16),
+                  _buildInfoRow('Khoản mới', _totalAmount),
+                  Divider(color: Theme.of(context).dividerColor, height: 16),
+                  _buildInfoRow('Hạn mức $periodLabel', limit, isLimit: true),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text('Hủy'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('Vẫn lưu'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _showUltimateIntervention() async {
     if (!mounted) return;
     await showGeneralDialog(
@@ -676,25 +807,59 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     if (photo != null) {
       setState(() {
         _isScanning = true;
-        _statusMessage = 'Đang quét hóa đơn...';
+        _statusMessage = 'Đang đọc hóa đơn...';
       });
 
       try {
-        double detectedAmount = await _ocrService!.scanReceipt(photo.path);
+        // Step 1: Extract Raw Text
+        final String rawText = await _ocrService!.extractRawText(photo.path);
+        
+        if (rawText.isEmpty) {
+          setState(() {
+            _isScanning = false;
+            _statusMessage = 'Không thể đọc được chữ trên ảnh. Vui lòng nhập tay.';
+          });
+          return;
+        }
+
+        // Step 2: AI Parsing
+        setState(() => _statusMessage = 'AI đang phân tích hóa đơn...');
+        final aiService = GeminiChatService();
+        final result = await aiService.parseReceiptText(rawText);
+
         setState(() {
           _isScanning = false;
-          if (detectedAmount > 0) {
-            _priceController.text = detectedAmount.toStringAsFixed(0);
-            _statusMessage =
-                'Đã nhận diện: ${NumberFormat.currency(locale: 'vi', symbol: '₫', decimalDigits: 0).format(detectedAmount)}';
+          if (result != null) {
+            final double amount = (result['amount'] ?? 0).toDouble();
+            final String category = result['category'] ?? 'Khác';
+            final String notes = result['notes'] ?? '';
+
+            if (amount > 0) {
+              _priceController.text = amount.toStringAsFixed(0);
+            }
+            
+            // Check if category is valid in our registry
+            if (CategoryRegistry.instance.categoryNames().contains(category)) {
+              _selectedCategory = category;
+            } else {
+              _selectedCategory = 'Khác';
+            }
+
+            if (notes.isNotEmpty) {
+              _notesController.text = notes;
+            }
+
+            _statusMessage = amount > 0 
+                ? 'Đã nhận diện: ${NumberFormat.currency(locale: 'vi', symbol: '₫', decimalDigits: 0).format(amount)}'
+                : 'Đã phân tích xong hóa đơn.';
           } else {
-            _statusMessage = 'Không tìm thấy số tiền, vui lòng nhập tay';
+            _statusMessage = 'Không tìm thấy thông tin, vui lòng nhập tay';
           }
         });
       } catch (e) {
         setState(() {
           _isScanning = false;
-          _statusMessage = 'Lỗi quét: Vui lòng nhập tay';
+          _statusMessage = 'Lỗi phân tích: Vui lòng nhập tay';
         });
       }
     }

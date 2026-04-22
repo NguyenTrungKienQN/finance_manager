@@ -23,6 +23,8 @@ import 'models/debt_record_model.dart'; // Import DebtRecord model
 import 'models/habit_breaker_model.dart'; // Import HabitBreaker model
 import 'theme/app_theme.dart'; // Correctly placed import
 import 'services/migration_service.dart';
+import 'models/spending_category_model.dart';
+import 'services/category_registry.dart';
 
 // Modern color palette
 // AppColors class removed as we use AppTheme
@@ -43,6 +45,8 @@ void main() async {
     Hive.registerAdapter(RecurringFrequencyAdapter());
     Hive.registerAdapter(DebtRecordAdapter());
     Hive.registerAdapter(HabitBreakerAdapter());
+    Hive.registerAdapter(SpendingCategoryAdapter());
+    Hive.registerAdapter(BudgetPeriodAdapter());
 
     // Init Notifications and Open boxes in parallel
     await Future.wait([
@@ -54,11 +58,15 @@ void main() async {
       Hive.openBox<RecurringTransaction>('recurringTransactions'),
       Hive.openBox<DebtRecord>('debtRecords'),
       Hive.openBox<HabitBreaker>('habitBreakers'),
+      Hive.openBox<SpendingCategory>('categories'),
       Hive.openBox('currency_data'),
       Hive.openBox('notification_log'),
     ]);
 
     hiveInitialized = true;
+
+    // Init Category Registry
+    await CategoryRegistry.instance.initialize();
 
     // Run data migrations after boxes are open
     await MigrationService.runAllMigrations();

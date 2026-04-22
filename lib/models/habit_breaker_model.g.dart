@@ -35,13 +35,15 @@ class HabitBreakerAdapter extends TypeAdapter<HabitBreaker> {
       dayStates: fields[15] == null
           ? {}
           : (fields[15] as Map?)?.cast<String, String>(),
+      targetDuration: fields[16] as int?,
+      aiPersona: fields[17] == null ? 'expert' : fields[17] as String,
     );
   }
 
   @override
   void write(BinaryWriter writer, HabitBreaker obj) {
     writer
-      ..writeByte(16)
+      ..writeByte(18)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -73,7 +75,11 @@ class HabitBreakerAdapter extends TypeAdapter<HabitBreaker> {
       ..writeByte(14)
       ..write(obj.cleanDaysSinceRecovery)
       ..writeByte(15)
-      ..write(obj.dayStates);
+      ..write(obj.dayStates)
+      ..writeByte(16)
+      ..write(obj.targetDuration)
+      ..writeByte(17)
+      ..write(obj.aiPersona);
   }
 
   @override

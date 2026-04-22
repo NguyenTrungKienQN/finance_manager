@@ -31,10 +31,14 @@ class NotificationService {
   static const int _savingsMilestoneId = 99968;
   static const int _streakFrozenId = 99969;
   static const int _streakRecoveredId = 99965;
+  static const int _velocityWarningId = 99964;
 
   static const String _sentLogKey = 'sent_notifications';
   static const String _plannedLogKey = 'planned_notifications';
   static const String _overspendHistoryKey = 'overspend_history';
+  static const String _velocityHistoryKey = 'velocity_history';
+  static const String _categoryThresholdHistoryKey =
+      'category_threshold_history';
 
   static const int _priorityMorningBudget = 90;
   static const int _priorityOverspendAlert = 100;
@@ -162,8 +166,7 @@ class NotificationService {
       _notificationDetails(
         androidChannelId: 'overspend_alerts',
         androidChannelName: 'Cảnh báo vượt chi',
-        androidChannelDescription:
-            'Cảnh báo chi tiêu sắp hoặc đã vượt hạn mức',
+        androidChannelDescription: 'Cảnh báo chi tiêu sắp hoặc đã vượt hạn mức',
       ),
     );
 
@@ -173,6 +176,50 @@ class NotificationService {
     );
     history.add(historyKey);
     await _notificationLogBox.put(_overspendHistoryKey, history);
+  }
+
+  Future<void> fireVelocityWarning({
+    required String category,
+    required int daysEarly,
+    required DateTime exhaustionDate,
+  }) async {
+    final settings = _settings;
+    // Tie to overspend alerts toggle for now
+    if (!settings.notifOverspendAlert || daysEarly < 3) return;
+
+    final history = _velocityHistory;
+    final todayKey = _dayKey(AppTimeService.instance.now());
+    final historyKey = '$todayKey:$category';
+    if (history.contains(historyKey)) return;
+
+    final allowed = await _canSendNotification(
+      priority: _priorityOverspendAlert,
+    );
+    if (!allowed) return;
+
+    final title = 'Cảnh báo tốc độ chi tiêu 📉';
+    final dateStr = DateFormat('dd/MM').format(exhaustionDate);
+    final body =
+        'Tốc độ chi tiêu nhóm "$category" đang quá nhanh. Dự kiến cạn kiệt ngân sách vào $dateStr (sớm $daysEarly ngày).';
+
+    await flutterLocalNotificationsPlugin.show(
+      _velocityWarningId,
+      title,
+      body,
+      _notificationDetails(
+        androidChannelId: 'velocity_alerts',
+        androidChannelName: 'Cảnh báo tốc độ chi',
+        androidChannelDescription:
+            'Cảnh báo khi tốc độ chi tiêu dự kiến vượt hạn mức sớm',
+      ),
+    );
+
+    await _logNotificationSent(
+      id: _velocityWarningId,
+      priority: _priorityOverspendAlert,
+    );
+    history.add(historyKey);
+    await _notificationLogBox.put(_velocityHistoryKey, history);
   }
 
   Future<void> fireSavingsGoalMilestone(SavingsGoal goal) async {
@@ -228,6 +275,78 @@ class NotificationService {
     );
   }
 
+  Future<void> fireCategoryThresholdAlert({
+    required String category,
+    required double ratio,
+  }) async {
+    final logBox = Hive.box('notification_log');
+    final isEnabled =
+        logBox.get('notifCategoryThresholdEnabled', defaultValue: true) as bool;
+    if (!isEnabled) return;
+
+    // Determine threshold level: 1.0 (100%), 0.8 (80%), 0.5 (50%)
+    int thresholdPercent;
+    if (ratio >= 1.0) {
+      thresholdPercent = 100;
+    } else if (ratio >= 0.8) {
+      thresholdPercent = 80;
+    } else if (ratio >= 0.5) {
+      thresholdPercent = 50;
+    } else {
+      return;
+    }
+
+    final history = _categoryThresholdHistory;
+    final now = AppTimeService.instance.now();
+    final monthKey = '${now.year}-${now.month}';
+    final historyKey = '$monthKey:$category:$thresholdPercent';
+
+    if (history.contains(historyKey)) return;
+
+    final allowed = await _canSendNotification(
+      priority: _priorityOverspendAlert,
+    );
+    if (!allowed) return;
+
+    String title;
+    String body;
+    int id;
+
+    if (thresholdPercent == 100) {
+      title = 'Hết ngân sách $category! 🛑';
+      body =
+          'Bạn đã tiêu hết 100% ngân sách cho "$category". Hãy cân nhắc dừng lại.';
+      id = 99800 + category.hashCode % 100;
+    } else if (thresholdPercent == 80) {
+      title = 'Sắp hết tiền cho $category! ⚠️';
+      body = 'Bạn đã dùng $thresholdPercent% ngân sách cho "$category".';
+      id = 99820 + category.hashCode % 100;
+    } else {
+      title = 'Cảnh báo $category 💡';
+      body = 'Bạn đã dùng $thresholdPercent% ngân sách tháng cho "$category".';
+      id = 99840 + category.hashCode % 100;
+    }
+
+    await flutterLocalNotificationsPlugin.show(
+      id,
+      title,
+      body,
+      _notificationDetails(
+        androidChannelId: 'category_alerts',
+        androidChannelName: 'Cảnh báo hạng mục',
+        androidChannelDescription:
+            'Thông báo khi chi tiêu hạng mục chạm mốc ngân sách',
+      ),
+    );
+
+    await _logNotificationSent(
+      id: id,
+      priority: _priorityOverspendAlert,
+    );
+    history.add(historyKey);
+    await _notificationLogBox.put(_categoryThresholdHistoryKey, history);
+  }
+
   Future<void> fireStreakRecovered(HabitBreaker habit) async {
     final settings = _settings;
     if (!settings.notifHabitStreak) return;
@@ -252,6 +371,44 @@ class NotificationService {
       id: _streakRecoveredId,
       priority: _priorityHabitStreak,
     );
+  }
+
+  Future<void> scheduleHabitChallengeEncouragements(
+    HabitBreaker habit,
+    List<String> dailyMessages,
+  ) async {
+    // Start scheduling from tomorrow morning 8 AM
+    final now = AppTimeService.instance.now();
+
+    // We create a unique base ID for this habit to allow cancellation later if needed
+    final baseId = 80000 + (habit.id.hashCode % 10000);
+
+    for (int i = 0; i < dailyMessages.length; i++) {
+      var startDay = DateTime(now.year, now.month, now.day, 8, 0); // 8 AM
+      if (!startDay.isAfter(now)) {
+        startDay = startDay.add(const Duration(days: 1));
+      }
+
+      final scheduledDate =
+          tz.TZDateTime.from(startDay.add(Duration(days: i)), tz.local);
+
+      int dayNum = i + 1;
+      String title =
+          'Thử thách: ${habit.habitName} (Ngày $dayNum/${dailyMessages.length})';
+
+      await flutterLocalNotificationsPlugin.zonedSchedule(
+        baseId + i,
+        title,
+        dailyMessages[i],
+        scheduledDate,
+        _notificationDetails(
+          androidChannelId: 'habit_streaks',
+          androidChannelName: 'Nhắc chuỗi thói quen',
+          androidChannelDescription: 'Động viên bỏ thói quen xấu hàng ngày',
+        ),
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      );
+    }
   }
 
   Future<void> scheduleRecurringNotification({
@@ -360,6 +517,18 @@ class NotificationService {
         'savings_milestones',
         'Mốc tiết kiệm',
         description: 'Thông báo khi đạt mốc mục tiêu tiết kiệm',
+        importance: Importance.high,
+      ),
+      AndroidNotificationChannel(
+        'velocity_alerts',
+        'Cảnh báo tốc độ chi',
+        description: 'Cảnh báo khi dự báo chi tiêu vượt hạn mức sớm',
+        importance: Importance.high,
+      ),
+      AndroidNotificationChannel(
+        'category_alerts',
+        'Cảnh báo hạng mục',
+        description: 'Thông báo khi chi tiêu hạng mục chạm mốc ngân sách',
         importance: Importance.high,
       ),
     ];
@@ -747,7 +916,23 @@ class NotificationService {
       _overspendHistoryKey,
       defaultValue: <dynamic>[],
     );
-    return List<String>.from(raw as List);
+    return List<String>.from(raw);
+  }
+
+  List<String> get _velocityHistory {
+    final raw = _notificationLogBox.get(
+      _velocityHistoryKey,
+      defaultValue: <dynamic>[],
+    );
+    return List<String>.from(raw);
+  }
+
+  List<String> get _categoryThresholdHistory {
+    final raw = _notificationLogBox.get(
+      _categoryThresholdHistoryKey,
+      defaultValue: <dynamic>[],
+    );
+    return List<String>.from(raw);
   }
 
   List<Map<String, dynamic>> _sanitizeLogEntries(dynamic raw, String timeKey) {

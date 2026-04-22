@@ -14,7 +14,11 @@ import '../widgets/liquid_glass.dart';
 import 'package:flutter/foundation.dart';
 import '../utils/web_compatibility_helper.dart';
 import '../utils/app_toast.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
+import 'package:image_picker/image_picker.dart';
 import 'export_settings_page.dart';
+import 'category_management_page.dart';
 
 // ─────────────────────────────────────────────────
 // Main Settings Hub
@@ -62,6 +66,18 @@ class SettingsScreen extends StatelessWidget {
                 Navigator.pop(context, result);
               }
             },
+          ),
+          const SizedBox(height: 12),
+          _SettingsTile(
+            icon: Icons.category_rounded,
+            iconColor: const Color(0xFF9C27B0),
+            iconBgColor: const Color(0xFF9C27B0),
+            title: 'Quản lý danh mục',
+            subtitle: 'Thêm danh mục, đặt hạn mức theo loại',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const CategoryManagementPage()),
+            ),
           ),
           const SizedBox(height: 12),
           _SettingsTile(
@@ -276,6 +292,7 @@ class SalarySettingsPage extends StatefulWidget {
 
 class _SalarySettingsPageState extends State<SalarySettingsPage> {
   late TextEditingController _controller;
+  late TextEditingController _spentController;
 
   @override
   void initState() {
@@ -283,16 +300,25 @@ class _SalarySettingsPageState extends State<SalarySettingsPage> {
     _controller = TextEditingController(
       text: widget.currentSalary.toStringAsFixed(0),
     );
+    final settingsBox = Hive.box<AppSettings>('settings');
+    final settings = settingsBox.get('appSettings') ?? AppSettings();
+    _spentController = TextEditingController(
+      text: settings.initialMonthSpent.toStringAsFixed(0),
+    );
   }
 
   @override
   void dispose() {
     _controller.dispose();
+    _spentController.dispose();
     super.dispose();
   }
 
   double get _parsedSalary =>
       double.tryParse(_controller.text.replaceAll(RegExp(r'[,.]'), '')) ?? 0;
+      
+  double get _parsedSpent =>
+      double.tryParse(_spentController.text.replaceAll(RegExp(r'[,.]'), '')) ?? 0;
 
   double get _computedDailyLimit {
     final now = AppTimeService.instance.now();
@@ -305,6 +331,7 @@ class _SalarySettingsPageState extends State<SalarySettingsPage> {
       final settingsBox = Hive.box<AppSettings>('settings');
       final settings = settingsBox.get('appSettings') ?? AppSettings();
       settings.monthlySalary = _parsedSalary;
+      settings.initialMonthSpent = _parsedSpent;
       settings.dailyLimit = _computedDailyLimit;
       settingsBox.put('appSettings', settings);
       Navigator.pop(context, _parsedSalary);
@@ -409,6 +436,44 @@ class _SalarySettingsPageState extends State<SalarySettingsPage> {
                           color: theme.primaryColor,
                         ),
                         tooltip: 'Quy đổi tiền tệ',
+                      ),
+                      filled: true,
+                      fillColor: theme.canvasColor,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 20,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Label for spent
+                  Text(
+                    'Đã chi trước khi dùng app',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Input for spent
+                  TextField(
+                    controller: _spentController,
+                    keyboardType: TextInputType.number,
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: theme.textTheme.bodyLarge?.color,
+                    ),
+                    onChanged: (_) => setState(() {}),
+                    decoration: InputDecoration(
+                      suffixText: 'VNĐ',
+                      suffixStyle: TextStyle(
+                        color: theme.textTheme.bodyMedium?.color,
                       ),
                       filled: true,
                       fillColor: theme.canvasColor,
@@ -596,6 +661,10 @@ class NotificationSettingsPage extends StatelessWidget {
       case 'notifSavingsMilestone':
         settings.notifSavingsMilestone = value;
         break;
+      case 'notifCategoryThreshold':
+        final box = Hive.box('notification_log');
+        await box.put('notifCategoryThresholdEnabled', value);
+        break;
     }
 
     await settings.save();
@@ -657,6 +726,19 @@ class NotificationSettingsPage extends StatelessWidget {
                   context,
                   settings,
                   'notifOverspendAlert',
+                  value,
+                ),
+              ),
+              const SizedBox(height: 10),
+              _NotificationToggleTile(
+                emoji: '🔔',
+                title: 'Cảnh báo mốc chi tiêu',
+                subtitle: 'Báo khi tiêu hết 50%, 80%, 100% hạng mục',
+                value: Hive.box('notification_log').get('notifCategoryThresholdEnabled', defaultValue: true) as bool,
+                onChanged: (value) => _updateSetting(
+                  context,
+                  settings,
+                  'notifCategoryThreshold',
                   value,
                 ),
               ),
@@ -889,6 +971,102 @@ class AppearanceSettingsPage extends StatelessWidget {
                       value: 'dark',
                       currentMode: mode,
                     ),
+                    const SizedBox(height: 32),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Ảnh nền tiêu đề (Dashboard)',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        if (settings.headerBackgroundImagePath != null)
+                          TextButton(
+                            onPressed: () {
+                              settings.headerBackgroundImagePath = null;
+                              settings.save();
+                            },
+                            child: const Text('Xóa ảnh'),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    GestureDetector(
+                      onTap: () => _pickHeaderImage(context, settings),
+                      child: Container(
+                        width: double.infinity,
+                        height: 160,
+                        decoration: BoxDecoration(
+                          color: theme.cardColor,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: theme.primaryColor.withValues(alpha: 0.2),
+                            width: 1,
+                          ),
+                          image: settings.headerBackgroundImagePath != null
+                              ? DecorationImage(
+                                  image: FileImage(
+                                    File(settings.headerBackgroundImagePath!),
+                                  ),
+                                  fit: BoxFit.cover,
+                                )
+                              : null,
+                        ),
+                        child: settings.headerBackgroundImagePath == null
+                            ? Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.add_photo_alternate_outlined,
+                                    size: 40,
+                                    color: theme.primaryColor,
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    'Nhấn để chọn ảnh nền',
+                                    style: TextStyle(
+                                      color: theme.primaryColor,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(20),
+                                  gradient: LinearGradient(
+                                    begin: Alignment.bottomCenter,
+                                    end: Alignment.topCenter,
+                                    colors: [
+                                      Colors.black.withValues(alpha: 0.5),
+                                      Colors.transparent,
+                                    ],
+                                  ),
+                                ),
+                                alignment: Alignment.bottomRight,
+                                padding: const EdgeInsets.all(12),
+                                child: const CircleAvatar(
+                                  backgroundColor: Colors.white,
+                                  radius: 18,
+                                  child: Icon(
+                                    Icons.edit_rounded,
+                                    size: 18,
+                                    color: Colors.black,
+                                  ),
+                                ),
+                              ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Ảnh sẽ chỉ hiển thị ở phần trên của Trang chủ, làm nổi bật lời chào và thẻ số dư của bạn.',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.textTheme.bodyMedium?.color?.withValues(
+                          alpha: 0.6,
+                        ),
+                      ),
+                    ),
                   ],
                 );
               },
@@ -897,6 +1075,46 @@ class AppearanceSettingsPage extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _pickHeaderImage(BuildContext context, AppSettings settings) async {
+    if (kIsWeb) {
+      WebCompatibilityHelper.showUnsupportedMessage(context);
+      return;
+    }
+
+    final picker = ImagePicker();
+    final image = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85, // Better performance
+    );
+
+    if (image != null) {
+      try {
+        final docDir = await getApplicationDocumentsDirectory();
+        // Add timestamp to ensure uniqueness and trigger UI update
+        final timestamp = DateTime.now().millisecondsSinceEpoch;
+        final savedPath = p.join(docDir.path, 'header_bg_$timestamp.jpg');
+
+        // Copy file to app storage
+        await File(image.path).copy(savedPath);
+
+        // Delete old image if it exists to save space
+        if (settings.headerBackgroundImagePath != null) {
+          final oldFile = File(settings.headerBackgroundImagePath!);
+          if (await oldFile.exists()) {
+            await oldFile.delete();
+          }
+        }
+
+        settings.headerBackgroundImagePath = savedPath;
+        await settings.save();
+      } catch (e) {
+        if (context.mounted) {
+          AppToast.show(context, 'Lỗi khi lưu ảnh: $e');
+        }
+      }
+    }
   }
 }
 

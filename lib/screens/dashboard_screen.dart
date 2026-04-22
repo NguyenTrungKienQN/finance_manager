@@ -1,8 +1,10 @@
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:home_widget/home_widget.dart';
+import 'package:palette_generator/palette_generator.dart';
 import '../models/transaction_model.dart';
 import '../models/settings_model.dart';
 import '../screens/add_transaction_screen.dart';
@@ -15,10 +17,13 @@ import '../widgets/home_widgets/modern_home_widgets.dart';
 import '../widgets/habit_broken_dialog.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/app_time_service.dart';
+import '../services/category_registry.dart';
 import '../services/gemini_chat_service.dart';
 import '../services/notification_service.dart';
+import '../utils/habit_helper.dart';
 import '../main.dart';
 import '../utils/app_toast.dart';
+import '../models/spending_category_model.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -33,6 +38,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   late double _monthlySalary;
   DateTime _selectedDate = AppTimeService.instance.now();
   String _userName = "Bạn";
+  String? _headerBackgroundImagePath;
+  Color? _headerContentColor;
+  final ScrollController _scrollController = ScrollController();
+  final ValueNotifier<double> _scrollOffset = ValueNotifier(0.0);
+  String? _selectedCategoryFilter; // null = "Tất cả"
 
   Future<void> _handleMatchedHabitRelapse(HabitBreaker habit) async {
     final lostStreak = habit.currentStreak;
@@ -72,6 +82,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(() {
+      _scrollOffset.value = _scrollController.offset;
+    });
     HomeWidget.setAppGroupId('group.com.therize.fmanager');
     AppTimeService.instance.overrideNotifier.addListener(_handleTimeOverride);
     _loadSettings();
@@ -81,6 +94,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     Hive.box<HabitBreaker>(
       'habitBreakers',
     ).listenable().addListener(_updateHomeWidget);
+    Hive.box<Transaction>(
+      'transactions',
+    ).listenable().addListener(_checkBudgetVelocities);
 
     _checkForWidgetLaunch();
     HomeWidget.widgetClicked.listen(_launchedFromWidget);
@@ -126,6 +142,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   void dispose() {
+    _scrollController.dispose();
+    _scrollOffset.dispose();
     AppTimeService.instance.overrideNotifier
         .removeListener(_handleTimeOverride);
     Hive.box<Transaction>(
@@ -155,14 +173,47 @@ class _DashboardScreenState extends State<DashboardScreen> {
     setState(() {
       _monthlySalary = settings!.monthlySalary;
       _dailyLimit = settings.computedDailyLimit;
-      // Base limit = pure salary ÷ days — no rollover, so cards that add
-      // rollover themselves don't double-count it.
+      // Base limit should be universally consistent with SettingsModel logic,
+      // correctly accounting for monthly fixed categories and tracking dates.
       final now = AppTimeService.instance.now();
-      final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
-      _baseDailyLimit = daysInMonth > 0 ? settings.monthlySalary / daysInMonth : settings.monthlySalary;
+      _baseDailyLimit = settings.baseDailyLimitFor(now);
+      
       _userName = settings.userName;
+      _headerBackgroundImagePath = settings.headerBackgroundImagePath;
     });
+    _updateHeaderColor();
     _updateHomeWidget();
+    _checkBudgetVelocities();
+  }
+
+  Future<void> _updateHeaderColor() async {
+    if (_headerBackgroundImagePath == null) {
+      if (mounted) {
+        setState(() {
+          _headerContentColor = null;
+        });
+      }
+      return;
+    }
+
+    try {
+      final palette = await PaletteGenerator.fromImageProvider(
+        FileImage(File(_headerBackgroundImagePath!)),
+        maximumColorCount: 10,
+      );
+
+      if (mounted) {
+        // We look at the dominant color or targeted area
+        final dominant = palette.dominantColor?.color ?? Colors.black;
+        // If it's bright (> 0.5), use black text. Otherwise white.
+        setState(() {
+          _headerContentColor =
+              dominant.computeLuminance() > 0.5 ? Colors.black : Colors.white;
+        });
+      }
+    } catch (e) {
+      if (kDebugMode) print("Error generating palette: $e");
+    }
   }
 
   void _updateHomeWidget() async {
@@ -376,9 +427,165 @@ class _DashboardScreenState extends State<DashboardScreen> {
         );
       },
     );
+
     if (picked != null && picked != _selectedDate) {
       setState(() {
         _selectedDate = picked;
+      });
+    }
+  }
+
+  Future<void> _checkBudgetVelocities() async {
+    final box = Hive.box<Transaction>('transactions');
+    final now = AppTimeService.instance.now();
+    final categories = CategoryRegistry.instance.getAll();
+
+    for (final cat in categories) {
+      if (cat.budget == null || cat.budget! <= 0) continue;
+
+      double monthSpent = 0;
+      final Map<int, double> dailySpending = {};
+
+      for (final t in box.values) {
+        if (t.date.year == now.year && t.date.month == now.month) {
+          if (t.category == cat.name) {
+            monthSpent += t.amount;
+            dailySpending[t.date.day] = (dailySpending[t.date.day] ?? 0) + t.amount;
+          }
+        }
+      }
+
+      final int currentDay = now.day;
+      final int daysInMonth = DateTime(now.year, now.month + 1, 0).day;
+      final int daysWithData = dailySpending.keys.length;
+
+      // Only forecast if not already over budget
+      final bool isMonthly = cat.budgetPeriod == BudgetPeriod.monthly;
+      final double effectiveMonthlyBudget = isMonthly ? cat.budget! : cat.budget! * daysInMonth;
+      final double ratio = monthSpent / effectiveMonthlyBudget;
+
+      // Always check for threshold alerts (50%, 80%, 100%)
+      if (ratio >= 0.5) {
+        NotificationService().fireCategoryThresholdAlert(
+          category: cat.name,
+          ratio: ratio,
+        );
+      }
+      
+      if (daysWithData >= 3 && monthSpent < effectiveMonthlyBudget) {
+        final double mtdAverage = monthSpent / currentDay;
+        final int recentWindow = currentDay < 7 ? currentDay : 7;
+        double recentSum = 0;
+        for (int d = currentDay; d > currentDay - recentWindow; d--) {
+          recentSum += dailySpending[d] ?? 0;
+        }
+        final double recentAverage = recentSum / recentWindow;
+        final double velocity = (recentAverage * 0.7) + (mtdAverage * 0.3);
+
+        if (velocity > 0) {
+          final double remainingBudget = effectiveMonthlyBudget - monthSpent;
+          final int daysUntilExhausted = (remainingBudget / velocity).floor();
+          final exhaustionDate = now.add(Duration(days: daysUntilExhausted));
+          final lastDayOfMonth = DateTime(now.year, now.month, daysInMonth);
+
+          if (exhaustionDate.isBefore(lastDayOfMonth)) {
+            final daysEarly = lastDayOfMonth.difference(exhaustionDate).inDays;
+            
+            // Fire proactive warning if at least 3 days early
+            if (daysEarly >= 3) {
+              NotificationService().fireVelocityWarning(
+                category: cat.name,
+                daysEarly: daysEarly,
+                exhaustionDate: exhaustionDate,
+              );
+            }
+          }
+        }
+      }
+    }
+
+    // Tự động gợi ý thói quen In-app
+    final habitSuggestion = GeminiChatService().fastCheckHabits();
+    if (habitSuggestion != null && mounted) {
+      final String habitName = habitSuggestion['habit_name'] ?? '';
+      debugPrint('[AI Auto Suggest] Kiểm tra thói quen: $habitName');
+      
+      // Kiểm tra có đang tham gia thử thách này không
+      final activeHabits = Hive.box<HabitBreaker>('habitBreakers').values.toList();
+      final alreadyTracking = activeHabits.any((h) => 
+          h.habitName.toLowerCase() == habitName.toLowerCase() && h.isActive);
+      
+      if (alreadyTracking) {
+        debugPrint('[AI Auto Suggest] Bỏ qua vì đã có thử thách đang chạy cho $habitName');
+        return;
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      final nowStr = now.toIso8601String().split('T')[0];
+      
+      // Không spam, chỉ hỏi 1 lần/ngày/thói quen
+      final lastPrompt = prefs.getString('last_inapp_habit_prompt_$habitName');
+      if (lastPrompt == nowStr) {
+        debugPrint('[AI Auto Suggest] Bỏ qua vì hôm nay ($nowStr) đã nhắc thói quen $habitName rồi');
+        return;
+      }
+
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        
+        // Kiểm tra lại lần nữa trong callback để chắc chắn không hiện đè
+        await prefs.setString('last_inapp_habit_prompt_$habitName', nowStr);
+        
+        if (mounted) {
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (ctx) => AlertDialog(
+              backgroundColor: Theme.of(ctx).cardColor,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              title: Row(
+                children: [
+                  const Icon(Icons.auto_awesome, color: Colors.blueAccent),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text('AI Phát hiện thói quen', style: Theme.of(ctx).textTheme.titleLarge)),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Gợi ý: Bắt đầu bỏ $habitName',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    habitSuggestion['reason'] ?? 'Bạn đang chi tiêu khá nhiều cho khoản này. Hãy thử thách bản thân để tiết kiệm hơn!',
+                    style: Theme.of(ctx).textTheme.bodyMedium,
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text('Để sau', style: TextStyle(color: Theme.of(ctx).textTheme.bodySmall?.color)),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    HabitHelper.showAddHabitSheet(context, initialName: habitName);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(ctx).primaryColor,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text('Xem ngay'),
+                ),
+              ],
+            ),
+          );
+        }
       });
     }
   }
@@ -393,14 +600,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _selectedDate = AppTimeService.instance.now();
     _loadSettings();
     if (result != null) {
-      final now = AppTimeService.instance.now();
-      final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
-      setState(() {
-        _monthlySalary = result;
-        _baseDailyLimit = daysInMonth > 0 ? result / daysInMonth : result;
-        _dailyLimit = _baseDailyLimit; // no rollover yet since budget was just changed
-      });
-      _updateHomeWidget();
       NotificationService().scheduleAllSmartNotifications();
     }
   }
@@ -410,298 +609,370 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Scaffold(
       backgroundColor:
           Colors.transparent, // Background handled by AppTheme or Main
-      body: SafeArea(
-        bottom: false,
-        child: CustomScrollView(
-          physics: const BouncingScrollPhysics(),
-          slivers: [
-            // --- 1. Soft Header ---
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(24, 20, 24, 10),
-              sliver: SliverToBoxAdapter(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        // Avatar / Profile Pic
-                        Container(
-                          width: 48,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: AppTheme.softPurple.withValues(alpha: 0.3),
-                              width: 1,
-                            ),
-                          ),
-                          child: ClipOval(
-                            child: Image.asset(
-                              'assets/icon/app_icon.png',
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Xin chào,',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Theme.of(
-                                  context,
-                                ).textTheme.bodyMedium?.color,
+      body: Stack(
+        children: [
+          // Dynamic Header Background with Parallax
+          ValueListenableBuilder<double>(
+            valueListenable: _scrollOffset,
+            builder: (context, offset, _) {
+              return _DashboardHeaderBackground(
+                imagePath: _headerBackgroundImagePath,
+                scrollOffset: offset,
+              );
+            },
+          ),
+
+          CustomScrollView(
+            controller: _scrollController,
+            physics: const BouncingScrollPhysics(),
+            slivers: [
+              // --- 1. Soft Header ---
+              SliverPadding(
+                padding: EdgeInsets.fromLTRB(
+                  24,
+                  MediaQuery.of(context).padding.top + 20,
+                  24,
+                  10,
+                ),
+                sliver: SliverToBoxAdapter(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          // Avatar / Profile Pic
+                          Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color:
+                                    AppTheme.softPurple.withValues(alpha: 0.3),
+                                width: 1,
                               ),
                             ),
-                            Text(
-                              _userName,
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w800,
+                            child: ClipOval(
+                              child: Image.asset(
+                                'assets/icon/app_icon.png',
+                                fit: BoxFit.cover,
                               ),
                             ),
-                          ],
+                          ),
+                          const SizedBox(width: 16),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Xin chào,',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: _headerContentColor ??
+                                      Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium
+                                          ?.color,
+                                ),
+                              ),
+                              Text(
+                                _userName,
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w800,
+                                  color: _headerContentColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+
+                      // Date & Settings Controls
+                      Row(
+                        children: [
+                          IconButton(
+                            onPressed: () => _changeDate(-1),
+                            icon: const Icon(Icons.chevron_left, size: 28),
+                            color: _headerContentColor ??
+                                Theme.of(context).iconTheme.color,
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                          ),
+                          GestureDetector(
+                            onTap: () => _selectDate(context),
+                            child: Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 8),
+                              child: Column(
+                                children: [
+                                  Text(
+                                    DateFormat('d').format(_selectedDate),
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 18,
+                                      height: 1.0,
+                                      color: _headerContentColor,
+                                    ),
+                                  ),
+                                  Text(
+                                    DateFormat('MMM').format(_selectedDate),
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      height: 1.0,
+                                      color: _headerContentColor ??
+                                          Theme.of(context)
+                                              .textTheme
+                                              .bodyMedium
+                                              ?.color,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          if (!_isToday)
+                            IconButton(
+                              onPressed: () => _changeDate(1),
+                              icon: const Icon(Icons.chevron_right, size: 28),
+                              color: _headerContentColor ??
+                                  Theme.of(context).iconTheme.color,
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                            ),
+                          const SizedBox(width: 12),
+                          IconButton(
+                            onPressed: _showSettingsDialog,
+                            icon: const Icon(Icons.settings_outlined),
+                            color: _headerContentColor,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // --- 2. Spacer (ONLY when background image exists) ---
+              if (_headerBackgroundImagePath != null)
+                SliverToBoxAdapter(
+                  child: SizedBox(
+                    height: 280.0 -
+                        MediaQuery.of(context).padding.top -
+                        80, // 80 is approx greeting height
+                  ),
+                ),
+
+              // --- 3. Dashboard Cards ---
+              SliverToBoxAdapter(
+                child: DashboardStack(
+                  dailyLimit: _baseDailyLimit,
+                  monthlySalary: _monthlySalary,
+                  selectedDate: _selectedDate,
+                ),
+              ),
+
+              const SliverToBoxAdapter(child: SizedBox(height: 24)),
+
+              // --- 3. Weekly Chart ---
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor,
+                      borderRadius: BorderRadius.circular(32), // Soft rounded
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.03),
+                          blurRadius: 20,
+                          offset: const Offset(0, 8),
                         ),
                       ],
                     ),
-
-                    // Date & Settings Controls
-                    Row(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        IconButton(
-                          onPressed: () => _changeDate(-1),
-                          icon: const Icon(Icons.chevron_left, size: 28),
-                          color: Theme.of(context).iconTheme.color,
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
+                        const Text(
+                          'Tổng quan tuần',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                        GestureDetector(
-                          onTap: () => _selectDate(context),
+                        const SizedBox(height: 24),
+                        SizedBox(
+                          height: 200,
+                          child: WeeklyChartWidget(
+                            dailyLimit: _baseDailyLimit,
+                            selectedDate: _selectedDate,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              const SliverToBoxAdapter(child: SizedBox(height: 32)),
+
+              // --- 4. Transactions List ---
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Giao dịch gần đây',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).textTheme.titleLarge?.color,
+                        ),
+                      ),
+                      // Magic Clean Button
+                      ValueListenableBuilder(
+                        valueListenable:
+                            Hive.box<Transaction>('transactions').listenable(),
+                        builder: (context, box, _) {
+                          final messyCount = box.values
+                              .where((t) => t.category == 'Khác')
+                              .length;
+                          if (messyCount == 0) return const SizedBox.shrink();
+
+                          return ActionChip(
+                            avatar: const Icon(Icons.auto_awesome,
+                                color: Colors.white, size: 16),
+                            label: Text('Dọn $messyCount mục',
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold)),
+                            backgroundColor: Colors.purple,
+                            side: BorderSide.none,
+                            onPressed: () => _showMagicCleanSheet(context),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SliverToBoxAdapter(child: SizedBox(height: 16)),
+
+              // --- 4b. Category Filter Chips ---
+              SliverToBoxAdapter(
+                child: SizedBox(
+                  height: 40,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    children: [
+                      _buildCategoryChip(null, 'Tất cả'),
+                      ...CategoryRegistry.instance.getAll().map(
+                        (cat) => _buildCategoryChip(cat.name, cat.name),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SliverToBoxAdapter(child: SizedBox(height: 16)),
+
+              // --- 4c. Category Stats Card (when a specific category is selected) ---
+              if (_selectedCategoryFilter != null)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: _buildCategoryStatsCard(),
+                  ),
+                ),
+
+              if (_selectedCategoryFilter != null)
+                const SliverToBoxAdapter(child: SizedBox(height: 16)),
+
+              // --- 4d. Filtered Transaction List ---
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                sliver: ValueListenableBuilder(
+                  valueListenable: Hive.box<Transaction>(
+                    'transactions',
+                  ).listenable(),
+                  builder: (context, box, _) {
+                    var dayTransactions = box.values
+                        .where(
+                          (t) =>
+                              t.date.year == _selectedDate.year &&
+                              t.date.month == _selectedDate.month &&
+                              t.date.day == _selectedDate.day,
+                        )
+                        .toList()
+                      ..sort((a, b) => b.date.compareTo(a.date));
+
+                    // Apply category filter
+                    if (_selectedCategoryFilter != null) {
+                      dayTransactions = dayTransactions
+                          .where((t) => t.category == _selectedCategoryFilter)
+                          .toList();
+                    }
+
+                    if (dayTransactions.isEmpty) {
+                      return SliverToBoxAdapter(
+                        child: Center(
                           child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            padding: const EdgeInsets.all(40.0),
                             child: Column(
                               children: [
-                                Text(
-                                  DateFormat('d').format(_selectedDate),
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 18,
-                                    height: 1.0,
+                                Container(
+                                  padding: const EdgeInsets.all(20),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.withValues(alpha: 0.1),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    Icons.receipt_long_rounded,
+                                    size: 40,
+                                    color: Theme.of(context).disabledColor,
                                   ),
                                 ),
+                                const SizedBox(height: 16),
                                 Text(
-                                  DateFormat('MMM').format(_selectedDate),
+                                  _selectedCategoryFilter != null
+                                      ? "Không có giao dịch $_selectedCategoryFilter"
+                                      : "Chưa có giao dịch",
                                   style: TextStyle(
-                                    fontSize: 12,
-                                    height: 1.0,
-                                    color: Theme.of(
-                                      context,
-                                    ).textTheme.bodyMedium?.color,
+                                    color: Theme.of(context).disabledColor,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
                                   ),
                                 ),
                               ],
                             ),
                           ),
                         ),
-                        if (!_isToday)
-                          IconButton(
-                            onPressed: () => _changeDate(1),
-                            icon: const Icon(Icons.chevron_right, size: 28),
-                            color: Theme.of(context).iconTheme.color,
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                          ),
-                        const SizedBox(width: 12),
-                        IconButton(
-                          onPressed: _showSettingsDialog,
-                          icon: const Icon(Icons.settings_outlined),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // --- 2. Dashboard Cards (Card Flow) ---
-            // Pass _baseDailyLimit so cards that compute rollover internally
-            // don't double-count the already-adjusted _dailyLimit.
-            SliverToBoxAdapter(
-              child: DashboardStack(
-                dailyLimit: _baseDailyLimit,
-                monthlySalary: _monthlySalary,
-                selectedDate: _selectedDate,
-              ),
-            ),
-
-            const SliverToBoxAdapter(child: SizedBox(height: 24)),
-
-            // --- 3. Weekly Chart (Soft Container) ---
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).cardColor,
-                    borderRadius: BorderRadius.circular(32), // Soft rounded
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.03),
-                        blurRadius: 20,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'Tổng quan tuần',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
-                      SizedBox(
-                        height: 200,
-                        child: WeeklyChartWidget(
-                          dailyLimit: _baseDailyLimit,
-                          selectedDate: _selectedDate,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
-            const SliverToBoxAdapter(child: SizedBox(height: 32)),
-
-            // --- 4. Transactions List ---
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Giao dịch gần đây',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).textTheme.titleLarge?.color,
-                      ),
-                    ),
-                    // Magic Clean Button
-                    ValueListenableBuilder(
-                      valueListenable:
-                          Hive.box<Transaction>('transactions').listenable(),
-                      builder: (context, box, _) {
-                        final messyCount = box.values
-                            .where((t) => t.category == 'Khác')
-                            .length;
-                        if (messyCount == 0) return const SizedBox.shrink();
-
-                        return ActionChip(
-                          avatar: const Icon(Icons.auto_awesome,
-                              color: Colors.white, size: 16),
-                          label: Text('Dọn $messyCount mục',
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold)),
-                          backgroundColor: Colors.purple,
-                          side: BorderSide.none,
-                          onPressed: () => _showMagicCleanSheet(context),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            const SliverToBoxAdapter(child: SizedBox(height: 16)),
-
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              sliver: ValueListenableBuilder(
-                valueListenable: Hive.box<Transaction>(
-                  'transactions',
-                ).listenable(),
-                builder: (context, box, _) {
-                  var dayTransactions = box.values
-                      .where(
-                        (t) =>
-                            t.date.year == _selectedDate.year &&
-                            t.date.month == _selectedDate.month &&
-                            t.date.day == _selectedDate.day,
-                      )
-                      .toList()
-                    ..sort((a, b) => b.date.compareTo(a.date));
-
-                  if (dayTransactions.isEmpty) {
-                    return SliverToBoxAdapter(
-                      child: Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(40.0),
-                          child: Column(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(20),
-                                decoration: BoxDecoration(
-                                  color: Colors.grey.withValues(alpha: 0.1),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Icon(
-                                  Icons.receipt_long_rounded,
-                                  size: 40,
-                                  color: Theme.of(context).disabledColor,
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                "Chưa có giao dịch",
-                                style: TextStyle(
-                                  color: Theme.of(context).disabledColor,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    );
-                  }
-
-                  return SliverList(
-                    delegate: SliverChildBuilderDelegate((context, index) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: _buildTransactionItem(dayTransactions[index]),
                       );
-                    }, childCount: dayTransactions.length),
-                  );
-                },
+                    }
+
+                    return SliverList(
+                      delegate: SliverChildBuilderDelegate((context, index) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _buildTransactionItem(dayTransactions[index]),
+                        );
+                      }, childCount: dayTransactions.length),
+                    );
+                  },
+                ),
               ),
-            ),
 
-            const SliverToBoxAdapter(
-              child: SizedBox(height: 120),
-            ), // Space for dock
-          ],
-        ),
+              const SliverToBoxAdapter(
+                child: SizedBox(height: 120),
+              ), // Space for dock
+            ],
+          ),
+        ],
       ),
-
       floatingActionButton: Container(
         margin: const EdgeInsets.only(bottom: 100), // Lift above Floating Dock
         child: FloatingActionButton.extended(
@@ -850,41 +1121,412 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Color _getCategoryColor(String category) {
-    switch (category) {
-      case 'Ăn uống':
-        return Colors.orange;
-      case 'Giao thông':
-        return Colors.blue;
-      case 'Giáo dục':
-        return Colors.purple;
-      case 'Giải trí':
-        return Colors.pink;
-      case 'Y tế':
-        return Colors.red;
-      case 'Mua sắm':
-        return Colors.teal;
-      default:
-        return Colors.grey;
-    }
+    return CategoryRegistry.instance.getColor(category);
   }
 
   IconData _getCategoryIcon(String category) {
-    switch (category) {
-      case 'Ăn uống':
-        return Icons.restaurant_rounded;
-      case 'Giao thông':
-        return Icons.directions_car_rounded;
-      case 'Giáo dục':
-        return Icons.school_rounded;
-      case 'Giải trí':
-        return Icons.movie_rounded;
-      case 'Y tế':
-        return Icons.medical_services_rounded;
-      case 'Mua sắm':
-        return Icons.shopping_bag_rounded;
-      default:
-        return Icons.receipt_rounded;
+    return CategoryRegistry.instance.getIcon(category);
+  }
+
+  Widget _buildCategoryChip(String? categoryName, String label) {
+    final isSelected = _selectedCategoryFilter == categoryName;
+    final color = categoryName != null
+        ? CategoryRegistry.instance.getColor(categoryName)
+        : Theme.of(context).primaryColor;
+
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: GestureDetector(
+        onTap: () {
+          setState(() {
+            _selectedCategoryFilter = categoryName;
+          });
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected ? color : color.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isSelected ? color : Colors.transparent,
+              width: 1.5,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (categoryName != null) ...[
+                Icon(
+                  CategoryRegistry.instance.getIcon(categoryName),
+                  size: 16,
+                  color: isSelected ? Colors.white : color,
+                ),
+                const SizedBox(width: 6),
+              ],
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: isSelected
+                      ? Colors.white
+                      : Theme.of(context).textTheme.bodyMedium?.color,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCategoryStatsCard() {
+    final category = _selectedCategoryFilter!;
+    final catColor = CategoryRegistry.instance.getColor(category);
+    final catIcon = CategoryRegistry.instance.getIcon(category);
+    final budget = CategoryRegistry.instance.getBudget(category);
+    final period = CategoryRegistry.instance.getBudgetPeriod(category);
+    final fmt = NumberFormat('#,###', 'vi_VN');
+
+    final box = Hive.box<Transaction>('transactions');
+    final now = _selectedDate;
+
+    // Calculate spent for this category today
+    double todaySpent = 0;
+    double monthSpent = 0;
+    double totalMonthSpent = 0;
+    final Map<int, double> dailySpending = {}; // day -> amount for this category
+
+    for (final t in box.values) {
+      if (t.date.year == now.year && t.date.month == now.month) {
+        totalMonthSpent += t.amount;
+        if (t.category == category) {
+          monthSpent += t.amount;
+          dailySpending[t.date.day] = (dailySpending[t.date.day] ?? 0) + t.amount;
+          if (t.date.day == now.day) {
+            todaySpent += t.amount;
+          }
+        }
+      }
     }
+
+    // Determine which spent amount & label to display based on budget period
+    final bool isMonthly = period == BudgetPeriod.monthly;
+    final double displaySpent = (budget != null && isMonthly) ? monthSpent : todaySpent;
+    final String periodLabel = (budget != null && isMonthly) ? 'tháng này' : 'hôm nay';
+
+    // Share percentage calculation
+    final double sharePercent = totalMonthSpent > 0 ? (monthSpent / totalMonthSpent) * 100 : 0.0;
+    final String shareStr = sharePercent == sharePercent.roundToDouble() 
+        ? '${sharePercent.toInt()}%' 
+        : '${sharePercent.toStringAsFixed(1)}%';
+    final bool isDominant = sharePercent >= 40;
+
+    // Budget progress and utility flags (Moved up for forecasting logic)
+    final bool hasBudget = budget != null && budget > 0;
+    final double displaySpentForProgress = (budget != null && isMonthly) ? monthSpent : todaySpent;
+    final double progress = hasBudget ? (displaySpentForProgress / budget).clamp(0.0, 1.0) : 0;
+    final bool isOver = hasBudget && displaySpentForProgress > budget;
+
+    // --- Budget Velocity Forecasting ---
+    final int currentDay = now.day;
+    final int daysInMonth = DateTime(now.year, now.month + 1, 0).day;
+    final int daysWithData = dailySpending.keys.length;
+
+    DateTime? exhaustionDate;
+    bool isSustainable = true;
+    int? daysEarly;
+
+    if (hasBudget && daysWithData >= 3 && !isOver) {
+      // Linear month-to-date average
+      final double mtdAverage = monthSpent / currentDay;
+
+      // Last 7 days average (recency weighting)
+      final int recentWindow = currentDay < 7 ? currentDay : 7;
+      double recentSum = 0;
+      for (int d = currentDay; d > currentDay - recentWindow; d--) {
+        recentSum += dailySpending[d] ?? 0;
+      }
+      final double recentAverage = recentSum / recentWindow;
+
+      // Weighted velocity: 70% recent, 30% month-to-date
+      final double velocity = (recentAverage * 0.7) + (mtdAverage * 0.3);
+
+      if (velocity > 0) {
+        // Normalize budget to monthly equivalent if it's a daily limit
+        final double effectiveMonthlyBudget = isMonthly ? budget : budget * daysInMonth;
+        final double remainingBudget = effectiveMonthlyBudget - monthSpent;
+
+        if (remainingBudget > 0) {
+          final int daysUntilExhausted = (remainingBudget / velocity).floor();
+          exhaustionDate = now.add(Duration(days: daysUntilExhausted));
+          
+          final lastDayOfMonth = DateTime(now.year, now.month, daysInMonth);
+          isSustainable = !exhaustionDate.isBefore(lastDayOfMonth);
+          
+          if (!isSustainable) {
+            daysEarly = lastDayOfMonth.difference(exhaustionDate).inDays;
+          }
+        } else {
+          isSustainable = false;
+        }
+      }
+    }
+
+    // Color gradient based on progress
+    Color progressColor;
+    if (!hasBudget) {
+      progressColor = catColor;
+    } else if (progress < 0.6) {
+      progressColor = const Color(0xFF4CAF50); // Green
+    } else if (progress < 0.85) {
+      progressColor = const Color(0xFFFF9800); // Orange
+    } else {
+      progressColor = const Color(0xFFEF5350); // Red
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header row: Icon + Name + Amount
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: catColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(catIcon, color: catColor, size: 24),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      category,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 17,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Chi tiêu $periodLabel',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.color
+                            ?.withValues(alpha: 0.5),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '${fmt.format(displaySpent.toInt())}\u20ab',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 18,
+                      color: isOver ? Colors.redAccent : Theme.of(context).textTheme.bodyLarge?.color,
+                    ),
+                  ),
+                  if (hasBudget)
+                    Text(
+                      '/ ${fmt.format(budget.toInt())}\u20ab',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.color
+                            ?.withValues(alpha: 0.4),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+
+          // Budget progress bar (only if budget is set)
+          if (hasBudget) ...[
+            const SizedBox(height: 16),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: LinearProgressIndicator(
+                value: progress,
+                backgroundColor: progressColor.withValues(alpha: 0.12),
+                valueColor: AlwaysStoppedAnimation(progressColor),
+                minHeight: 8,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                if (isOver)
+                  Row(
+                    children: [
+                      Icon(Icons.warning_amber_rounded, size: 14, color: Colors.redAccent),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Vu\u01b0\u1ee3t h\u1ea1n m\u1ee9c',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.redAccent,
+                        ),
+                      ),
+                    ],
+                  )
+                else
+                  Text(
+                    'C\u00f2n l\u1ea1i: ${fmt.format((budget - displaySpent).toInt())}\u20ab',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context)
+                          .textTheme
+                          .bodyMedium
+                          ?.color
+                          ?.withValues(alpha: 0.5),
+                    ),
+                  ),
+                Text(
+                  '${(progress * 100).toInt()}%',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: progressColor,
+                  ),
+                ),
+              ],
+            ),
+          ],
+
+          // Monthly total shown as secondary info when viewing daily
+          if (hasBudget && !isMonthly) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Theme.of(context).scaffoldBackgroundColor,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.calendar_month_rounded, size: 14, color: catColor),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Tổng tháng: ${fmt.format(monthSpent.toInt())}\u20ab',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context)
+                          .textTheme
+                          .bodyMedium
+                          ?.color
+                          ?.withValues(alpha: 0.6),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
+          // Monthly Share Indicator (ALWAYS shown)
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: Theme.of(context).scaffoldBackgroundColor,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  isDominant ? Icons.warning_amber_rounded : Icons.pie_chart_outline_rounded,
+                  size: 14,
+                  color: isDominant ? Colors.orange : catColor,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Chiếm $shareStr tổng chi tháng',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: isDominant ? FontWeight.bold : FontWeight.w600,
+                    color: isDominant
+                        ? Colors.orange
+                        : Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.color
+                            ?.withValues(alpha: 0.6),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Budget Velocity Forecast (Proactive Indicator)
+          if (hasBudget && daysWithData >= 3 && !isOver) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: (isSustainable ? const Color(0xFF4CAF50) : Colors.redAccent).withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: (isSustainable ? const Color(0xFF4CAF50) : Colors.redAccent).withValues(alpha: 0.1),
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    isSustainable ? Icons.trending_up_rounded : Icons.trending_down_rounded,
+                    size: 14,
+                    color: isSustainable ? const Color(0xFF4CAF50) : Colors.redAccent,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      isSustainable 
+                        ? 'Tốc độ chi tiêu hợp lý ✓'
+                        : 'Dự kiến hết ngân sách: ${DateFormat('dd/MM').format(exhaustionDate ?? now)} ${daysEarly != null ? "($daysEarly ngày sớm)" : ""}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: isSustainable ? const Color(0xFF4CAF50) : Colors.redAccent,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 
   Future<void> _showMagicCleanSheet(BuildContext context) async {
@@ -1069,6 +1711,85 @@ class _MagicCleanSheetState extends State<_MagicCleanSheet> {
             ),
           ),
           const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+}
+
+class _DashboardHeaderBackground extends StatelessWidget {
+  final String? imagePath;
+  final double scrollOffset;
+
+  const _DashboardHeaderBackground({
+    this.imagePath,
+    required this.scrollOffset,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (imagePath == null) return const SizedBox.shrink();
+
+    final theme = Theme.of(context);
+
+    // Fixed Hero Height for consistent MB Bank-like look
+    final heroHeight = 280.0;
+
+    // Parallax effect: moves up at 40% speed
+    final parallaxTop = -scrollOffset * 0.4;
+
+    return Positioned(
+      top: parallaxTop,
+      left: 0,
+      right: 0,
+      height: heroHeight,
+      child: Stack(
+        children: [
+          // Base Background (Fallback)
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  theme.primaryColor.withValues(alpha: 0.1),
+                  theme.scaffoldBackgroundColor,
+                ],
+              ),
+            ),
+          ),
+
+          // Custom Image
+          if (imagePath != null)
+            Positioned.fill(
+              child: ClipRRect(
+                child: Image.file(
+                  File(imagePath!),
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return const SizedBox.shrink();
+                  },
+                ),
+              ),
+            ),
+
+          // Overlay for contrast & transition
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withValues(alpha: 0.25), // Dim top slightly
+                    Colors.black.withValues(alpha: 0.05),
+                    theme.scaffoldBackgroundColor, // Fade to scaffold color
+                  ],
+                  stops: const [0.0, 0.7, 1.0],
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );

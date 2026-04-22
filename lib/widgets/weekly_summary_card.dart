@@ -3,6 +3,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 import '../models/transaction_model.dart';
 import '../theme/app_theme.dart';
+import '../services/category_registry.dart';
 
 class WeeklySummaryCard extends StatelessWidget {
   final DateTime selectedDate;
@@ -234,38 +235,8 @@ class _CategoryIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    IconData icon;
-    Color color;
-
-    switch (category) {
-      case 'Ăn uống':
-        icon = Icons.restaurant_rounded;
-        color = Colors.orangeAccent;
-        break;
-      case 'Giao thông':
-        icon = Icons.directions_car_rounded;
-        color = Colors.blueAccent;
-        break;
-      case 'Giáo dục':
-        icon = Icons.school_rounded;
-        color = Colors.purpleAccent;
-        break;
-      case 'Giải trí':
-        icon = Icons.movie_rounded;
-        color = Colors.pinkAccent;
-        break;
-      case 'Y tế':
-        icon = Icons.medical_services_rounded;
-        color = Colors.redAccent;
-        break;
-      case 'Mua sắm':
-        icon = Icons.shopping_bag_rounded;
-        color = Colors.tealAccent;
-        break;
-      default:
-        icon = Icons.receipt_rounded;
-        color = Colors.grey;
-    }
+    final icon = CategoryRegistry.instance.getIcon(category);
+    final color = CategoryRegistry.instance.getColor(category);
 
     return Container(
       padding: const EdgeInsets.all(10),

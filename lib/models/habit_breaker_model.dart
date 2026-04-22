@@ -62,6 +62,12 @@ class HabitBreaker extends HiveObject {
   @HiveField(15, defaultValue: <String, String>{})
   Map<String, String> dayStates;
 
+  @HiveField(16)
+  int? targetDuration;
+
+  @HiveField(17, defaultValue: 'expert')
+  String aiPersona;
+
   HabitBreaker({
     required this.id,
     required this.habitName,
@@ -79,6 +85,8 @@ class HabitBreaker extends HiveObject {
     this.wasPurpleBeforeFreeze = false,
     this.cleanDaysSinceRecovery = 0,
     Map<String, String>? dayStates,
+    this.targetDuration,
+    this.aiPersona = 'expert',
   })  : startDate = startDate ?? AppTimeService.instance.now(),
         lastCheckDate = lastCheckDate ?? AppTimeService.instance.now(),
         badges = badges ?? [],

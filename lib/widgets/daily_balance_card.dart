@@ -5,6 +5,8 @@ import '../models/settings_model.dart';
 import '../models/transaction_model.dart';
 import '../services/app_time_service.dart';
 import '../theme/app_theme.dart'; // For AppTheme
+import '../models/spending_category_model.dart';
+import '../services/category_registry.dart';
 
 class DailyBalanceCard extends StatelessWidget {
   final double dailyLimit;
@@ -39,6 +41,13 @@ class DailyBalanceCard extends StatelessWidget {
               if (transaction.date.year == selectedDate.year &&
                   transaction.date.month == selectedDate.month &&
                   transaction.date.day == selectedDate.day) {
+                // EXCLUDE monthly-budgeted categories from daySpent
+                // as they are already pre-subtracted from the daily limit logic
+                final cat =
+                    CategoryRegistry.instance.getByName(transaction.category);
+                if (cat?.budgetPeriod == BudgetPeriod.monthly) {
+                  continue;
+                }
                 daySpent += transaction.amount;
               }
             }
@@ -46,10 +55,31 @@ class DailyBalanceCard extends StatelessWidget {
             final dynamicDailyLimit =
                 settings.calculateDailyLimitForDate(selectedDate, box.values);
             final remaining = dynamicDailyLimit - daySpent;
+
+            // DEBUG LOGS
+            debugPrint('--- DEBUG DAILY LIMIT ---');
+            debugPrint('Selected Date: $selectedDate');
+            debugPrint(
+                'Base Daily: ${settings.baseDailyLimitFor(selectedDate)}');
+            debugPrint(
+                'Total Monthly Fixed: ${CategoryRegistry.instance.totalMonthlyFixed()}');
+            debugPrint('Initial Month Spent: ${settings.initialMonthSpent}');
+            debugPrint(
+                'Setup Month Budget: ${settings.monthlySalary - CategoryRegistry.instance.totalMonthlyFixed()}');
+            debugPrint('Dynamic Daily Limit: $dynamicDailyLimit');
+            debugPrint('Day Spent: $daySpent');
+            debugPrint('Remaining: $remaining');
+
             final progress = dynamicDailyLimit > 0
-                ? (daySpent / dynamicDailyLimit).clamp(0.0, 1.0)
-                : 1.0;
-            final isOverBudget = daySpent > dynamicDailyLimit;
+                ? (daySpent / dynamicDailyLimit)
+                    .clamp(0.0, 1.2) // Allow slight overflow visual
+                : (daySpent > 0 ? 1.2 : 0.0);
+
+            // It is over budget if:
+            // 1. We spent more than the dynamic limit allocated for today
+            // 2. OR the dynamic limit is already 0 (net debt) and we spent anything at all
+            final isOverBudget = daySpent > dynamicDailyLimit ||
+                (dynamicDailyLimit <= 0 && daySpent > 0);
 
             return Container(
               padding: const EdgeInsets.all(24),
