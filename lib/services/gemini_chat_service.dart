@@ -501,16 +501,6 @@ class GeminiChatService {
       debugPrint('[AI Suggest] ERROR: $e');
       return _localFastSuggest(recentTxns);
     }
-  /// Public method for dashboard to check habits without hitting AI
-  Map<String, dynamic>? fastCheckHabits() {
-    final box = Hive.box<Transaction>('transactions');
-    if (box.isEmpty) return null;
-    
-    final now = AppTimeService.instance.now();
-    final lastMonth = now.subtract(const Duration(days: 30));
-    final recentTxns = box.values.where((t) => t.date.isAfter(lastMonth)).toList();
-    
-    return _localFastSuggest(recentTxns);
   }
 
   /// Fast local frequency heuristic in case AI takes too long or fails to recognize cluster
@@ -550,6 +540,84 @@ class GeminiChatService {
       "habit_name": habitName,
       "suggested_duration": 7,
       "reason": "Hệ thống phát hiện bạn đã chi tiền cho khoản này $maxFreq lần trong tuần qua. Hãy thử sức từ bỏ nó nhé!"
+    };
+  }
+
+  /// Analyzes bill context (from OCR text or user notes) and returns split suggestions.
+  Future<Map<String, dynamic>?> analyzeBillForSplit({
+    required double totalAmount,
+    required String description,
+    List<String>? existingPeople,
+  }) async {
+    debugPrint('[AI Split] Starting... total=$totalAmount, desc="${description.length > 50 ? description.substring(0, 50) : description}", people=$existingPeople');
+    
+    // If we already have people selected, try local split first for instant response
+    if (existingPeople != null && existingPeople.isNotEmpty && description.trim().isEmpty) {
+      debugPrint('[AI Split] No description, using local equal split');
+      return _localEqualSplit(totalAmount, existingPeople);
+    }
+
+    try {
+      final apiKey = _getApiKey();
+      
+      final peopleContext = existingPeople != null && existingPeople.isNotEmpty
+          ? "Danh sách người: ${existingPeople.join(', ')}."
+          : "Tìm tên người trong văn bản. Nếu không rõ, giả sử 2 người.";
+
+      final model = GenerativeModel(
+        model: 'gemini-2.0-flash',
+        apiKey: apiKey,
+        systemInstruction: Content.system(
+          "Trợ lý chia tiền. $peopleContext\n"
+          "Chia theo chi tiết hóa đơn nếu có, không thì chia đều. TỔNG phải = $totalAmount.\n"
+          "CHỈ trả JSON: {\"people\": [\"tên1\", \"tên2\"], \"splits\": {\"tên1\": số, \"tên2\": số}, \"reasoning\": \"lý do ngắn\"}"
+        ),
+      );
+
+      final prompt = "Tổng hóa đơn: $totalAmount\nNội dung/Hóa đơn: $description";
+      debugPrint('[AI Split] Calling API...');
+      
+      // 10-second timeout to prevent infinite hang
+      final response = await model.generateContent([Content.text(prompt)])
+          .timeout(const Duration(seconds: 10));
+      
+      final rawText = response.text?.trim() ?? '';
+      debugPrint('[AI Split] Raw response: $rawText');
+      
+      var jsonString = rawText.replaceAll('```json', '').replaceAll('```', '').trim();
+      final jsonMatch = RegExp(r'\{.*\}', dotAll: true).firstMatch(jsonString);
+      if (jsonMatch != null) {
+        jsonString = jsonMatch.group(0)!;
+      }
+      
+      return jsonDecode(jsonString) as Map<String, dynamic>;
+    } catch (e) {
+      debugPrint('[AI Split] ERROR: $e');
+      // Fallback: equal split among existing people
+      if (existingPeople != null && existingPeople.isNotEmpty) {
+        return _localEqualSplit(totalAmount, existingPeople);
+      }
+      return null;
+    }
+  }
+
+  /// Instant local equal split — no AI needed
+  Map<String, dynamic> _localEqualSplit(double total, List<String> people) {
+    final perPerson = (total / people.length).roundToDouble();
+    final splits = <String, dynamic>{};
+    for (var p in people) {
+      splits[p] = perPerson;
+    }
+    // Adjust last person to absorb rounding error
+    final remainder = total - (perPerson * people.length);
+    if (remainder.abs() > 0.5) {
+      splits[people.last] = perPerson + remainder;
+    }
+    debugPrint('[AI Split] Local fallback: $splits');
+    return {
+      "people": people,
+      "splits": splits,
+      "reasoning": "Chia đều (AI không khả dụng)",
     };
   }
 }

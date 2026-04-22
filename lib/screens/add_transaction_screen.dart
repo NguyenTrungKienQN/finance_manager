@@ -25,6 +25,8 @@ import '../utils/app_toast.dart';
 import '../services/category_registry.dart';
 import '../models/spending_category_model.dart';
 
+import '../models/debt_record_model.dart';
+
 class AddTransactionScreen extends StatefulWidget {
   final double dailyLimit;
 
@@ -50,6 +52,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   bool _isAiParsing = false;
   String _aiErrorMessage = '';
 
+
   final stt.SpeechToText _speech = stt.SpeechToText();
   bool _isListening = false;
 
@@ -72,6 +75,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     _notesController.dispose();
     _debounce?.cancel();
     _speech.stop();
+
     super.dispose();
   }
 
@@ -292,6 +296,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
     await box.add(transaction);
 
+
+
     final updatedSpent = todaySpent + _totalAmount;
     await NotificationService().fireOverspendAlert(
       spentAmount: updatedSpent,
@@ -366,6 +372,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       }
     }
   }
+
+
 
   Future<bool?> _showOverLimitDialog(double todaySpent, double dailyLimit) {
     return showModalBottomSheet<bool>(
@@ -1271,6 +1279,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                         );
                       }).toList(),
                     ),
+
                   ],
                 ),
               ),

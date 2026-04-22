@@ -11,10 +11,10 @@ class DebtRecord extends HiveObject {
   final String debtorName; // Name of person who owes money
 
   @HiveField(2)
-  final double amount;
+  double amount;
 
   @HiveField(3)
-  final String description;
+  String description;
 
   @HiveField(4)
   final DateTime date;
