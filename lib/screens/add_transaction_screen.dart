@@ -25,7 +25,6 @@ import '../utils/app_toast.dart';
 import '../services/category_registry.dart';
 import '../models/spending_category_model.dart';
 
-import '../models/debt_record_model.dart';
 
 class AddTransactionScreen extends StatefulWidget {
   final double dailyLimit;
